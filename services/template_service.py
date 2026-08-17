@@ -26,30 +26,43 @@ class TemplateService:
     def render_email(self, lead: Dict[str, Any]) -> Tuple[str, str, str]:
         """
         Renders email subject, HTML body, and plain-text body for a given lead.
-        Placeholders: business_name, city, sector, website.
+        Lead fields used: name, city, sector, website, email.
         Returns tuple: (subject, html_body, plain_text_body)
         """
-        business_name = lead.get("place_id") or "vostra attività"
+        business_name = lead.get("name") or lead.get("place_id") or "vostra attività"
         city = lead.get("city") or "Italia"
         sector = lead.get("sector") or "commerciale"
         website = lead.get("website") or ""
+        email = lead.get("email") or ""
 
-        subject = f"Opportunità di collaborazione per {city}"
-        
+        subject = 'Un semplice "TAP" per dominare Google Maps nel 2026'
+
         html_template = self.load_template()
         html_body = html_template.format(
             business_name=business_name,
             city=city,
             sector=sector,
-            website=website if website else "attività"
+            website=website if website else "#",
+            unsubscribe_url="#unsubscribe"
         )
 
         plain_text_body = (
-            f"Gentile team di {business_name},\n\n"
-            f"Vi contattiamo in merito alla vostra attività nel settore {sector} a {city}.\n"
-            f"Sito web: {website}\n\n"
-            "Se siete interessati a saperne di più, rispondete a questa e-mail.\n\n"
-            "Cordiali saluti."
+            f"Problemi a raccogliere Recensioni Google?\n\n"
+            f"Passare da 3 a 50 recensioni a settimana non è mai stato così IMPORTANTE "
+            f"per la visibilità online come nel 2026, e non è mai stato così SEMPLICE "
+            f"come con le nostre Card NFC!!\n\n"
+            f"Scopri di più sul nostro portale:\n"
+            f"https://csd-station.it/?mode=nfc\n\n"
+            f"la nostra soluzione a 20€ una Tantum, zero Abbonamenti!!\n\n"
+            f"NFC Card\n\n"
+            f"Inizia a raccogliere attivamente recensioni per migliorare la SEO del tuo "
+            f"Business online nel modo più conveniente e più potente nel 2026.\n\n"
+            f"Inutile girarci intorno: le recensioni Google sono il primo punto di contatto con il cliente.\n\n"
+            f"Vengono prima del vostro sito web e prima della SEO interna del tuo sito. "
+            f"Un cliente oggi guarda quasi esclusivamente le recensioni su Google Maps.\n\n"
+            f"Un cliente avanzato che usa l'AI (come Chat GPT, Gemini, Claude) finisce "
+            f"sempre dentro i punti locali con più recensioni Google.\n\n"
+            f"Info e Ordini su WhatsApp:\nhttps://api.whatsapp.com/send/?phone=393518628203\n"
         )
 
         return subject, html_body, plain_text_body
