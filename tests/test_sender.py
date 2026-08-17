@@ -40,10 +40,11 @@ def test_template_rendering():
 
     subject, html_body, plain_text = template_service.render_email(lead_data)
 
-    assert "Milano" in subject
-    assert "Ristorante Da Mario" in html_body
-    assert "https://damario-milano.it" in html_body
-    assert "Ristorazione" in plain_text
+    assert "TAP" in subject  # fixed campaign subject
+    assert "Google Maps" in subject
+    assert "csd-station.it" in html_body  # portal link is always present
+    assert "Recensioni Google" in plain_text  # present in plain text body
+    assert "whatsapp.com" in html_body  # WhatsApp CTA is always present
 
 def test_smtp_missing_credentials_fails_gracefully():
     # Calling send_email with empty credentials should fail safely without crashing

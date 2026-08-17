@@ -38,12 +38,13 @@ class TemplateService:
         subject = 'Un semplice "TAP" per dominare Google Maps nel 2026'
 
         html_template = self.load_template()
-        html_body = html_template.format(
-            business_name=business_name,
-            city=city,
-            sector=sector,
-            website=website if website else "#",
-            unsubscribe_url="#unsubscribe"
+        html_body = (
+            html_template
+            .replace("{business_name}", business_name)
+            .replace("{city}", city)
+            .replace("{sector}", sector)
+            .replace("{website}", website if website else "#")
+            .replace("{unsubscribe_url}", "#unsubscribe")
         )
 
         plain_text_body = (
