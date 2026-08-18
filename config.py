@@ -9,9 +9,15 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     CUSTOM_SEARCH_ENGINE_ID: str = ""
     GCP_PROJECT: str = ""
+    GCP_PROJECT_ID: str = ""
+    CP_PROJECT_ID: str = ""
     GCP_LOCATION: str = "europe-west1"
     GEMINI_MODEL_NAME: str = "gemini-3.5-flash-lite"  # Target model gemini-3.5-flash-lite
     ENABLE_GEMINI_GROUNDING: bool = True  # Enable Vertex AI Google Search Grounding for direct email search
+
+    @property
+    def project_id(self) -> str:
+        return self.GCP_PROJECT or self.GCP_PROJECT_ID or self.CP_PROJECT_ID or "scraping-505816"
 
     # Workspace SMTP & Sender Configuration
     WORKSPACE_EMAIL: str = ""
