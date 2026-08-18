@@ -59,6 +59,12 @@ def run_email_sender_task():
         # Render email content
         subject, html_body, plain_text_body = template_service.render_email(lead)
 
+        # Apply random pre-send jitter delay to randomize exact send timestamp
+        if settings.PRE_SEND_JITTER_MAX_SEC > 0:
+            jitter_sec = random.uniform(settings.PRE_SEND_JITTER_MIN_SEC, settings.PRE_SEND_JITTER_MAX_SEC)
+            logger.info(f"Random pre-send jitter: pausing for {jitter_sec:.1f}s before sending email...")
+            time.sleep(jitter_sec)
+
         # Send via SMTP
         success = smtp_service.send_email(to_email, subject, html_body, plain_text_body)
 

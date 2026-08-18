@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     SEND_DELAY_MIN_SEC: float = 30.0    # Optional delay range
     SEND_DELAY_MAX_SEC: float = 90.0
 
+    # Pre-send random jitter delay (sleep before sending each email)
+    PRE_SEND_JITTER_MIN_SEC: float = 5.0
+    PRE_SEND_JITTER_MAX_SEC: float = 45.0
+
     # Scraping & Time Filter Settings
     TIMEZONE: str = "Europe/Rome"
     NIGHT_START_HOUR: int = 22  # 22:00
