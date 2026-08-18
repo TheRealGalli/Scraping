@@ -75,8 +75,9 @@ def run_lead_generation_task():
             website = place.get("website", "")
             email = ""
 
-            # OPTIMIZATION LEVEL 1: Direct Gemini Grounding search (~50 tokens, NO HTML scraping required)
-            if business_name:
+            # OPTIMIZATION LEVEL 1: Direct Gemini Grounding search (DISABLED by default to avoid Vertex AI costs)
+            # Re-enable via ENABLE_GEMINI_GROUNDING=True env var only when needed
+            if settings.ENABLE_GEMINI_GROUNDING and business_name:
                 logger.info(f"Level 1: Gemini Grounding direct search for '{business_name}'...")
                 email = email_extractor.find_email_via_gemini_search(business_name, city, website) or ""
 
@@ -98,8 +99,9 @@ def run_lead_generation_task():
                         # Check Regex first (0 AI tokens)
                         email = email_extractor.extract_email_with_regex(web_text) or ""
 
-                        # OPTIMIZATION LEVEL 3: Gemini NLP on HTML text (Last resort fallback)
-                        if not email:
+                        # OPTIMIZATION LEVEL 3: Gemini NLP on HTML text (DISABLED - use Regex only to avoid Vertex AI costs)
+                        # Re-enable via ENABLE_GEMINI_GROUNDING=True env var if Regex miss rate is too high
+                        if not email and settings.ENABLE_GEMINI_GROUNDING:
                             logger.info(f"Level 3: Invoking Gemini NLP fallback on scraped HTML text...")
                             email = email_extractor.extract_email_with_gemini(web_text) or ""
 

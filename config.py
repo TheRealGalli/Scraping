@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     CP_PROJECT_ID: str = ""
     GCP_LOCATION: str = "europe-west1"
     GEMINI_MODEL_NAME: str = "gemini-3.5-flash-lite"  # Target model gemini-3.5-flash-lite
-    ENABLE_GEMINI_GROUNDING: bool = True  # Enable Vertex AI Google Search Grounding for direct email search
+    ENABLE_GEMINI_GROUNDING: bool = False  # DISABLED: Vertex AI Grounding costs ~€0.002/call; Regex+Scraping is sufficient
 
     @property
     def project_id(self) -> str:
@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     NIGHT_START_HOUR: int = 22  # 22:00
     NIGHT_END_HOUR: int = 6     # 06:00
     HTTP_TIMEOUT: float = 4.0   # seconds per page fetch
-    MAX_PLACES_PER_RUN: int = 20
-    MAX_SEARCH_QUERIES_PER_RUN: int = 5  # Strictly cap Places API search queries per worker run to prevent cost spikes
+    MAX_PLACES_PER_RUN: int = 10
+    MAX_SEARCH_QUERIES_PER_RUN: int = 3  # COST CONTROL: Max Places API text search calls per run (Essentials: €0.005/call)
     SLEEP_BETWEEN_CALLS: float = 0.5  # seconds delay for rate limiting
 
     model_config = SettingsConfigDict(
