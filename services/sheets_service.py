@@ -22,6 +22,8 @@ class SheetsService:
     def _get_client(self):
         if not self.client:
             credentials, _ = google.auth.default(scopes=SCOPES)
+            if hasattr(credentials, "with_scopes"):
+                credentials = credentials.with_scopes(SCOPES)
             self.client = gspread.authorize(credentials)
         return self.client
 
