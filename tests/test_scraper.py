@@ -91,4 +91,4 @@ def test_worker_endpoint_invocation():
     response = client.post("/worker")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] in ["skipped", "processing"]
+    assert data["status"] in ["skipped", "completed"]

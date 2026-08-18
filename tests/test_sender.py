@@ -56,4 +56,4 @@ def test_send_emails_endpoint():
     response = client.post("/send-emails")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] in ["skipped", "processing"]
+    assert data["status"] in ["skipped", "completed"]
