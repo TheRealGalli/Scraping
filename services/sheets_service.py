@@ -110,8 +110,8 @@ class SheetsService:
             logger.info(f"Successfully appended {len(rows_to_append)} rows to Google Sheet '{self.sheet_name}'.")
             return len(rows_to_append)
         except Exception as e:
-            logger.error(f"Error appending rows to Google Sheet: {e}")
-            raise e
+            logger.error(f"Error appending rows to Google Sheet: {type(e).__name__} - {e}")
+            return 0
 
     def get_pending_leads(self, limit: int = 50) -> List[Dict[str, Any]]:
         """
