@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     MAX_DAILY_EMAILS: int = 50
-    EMAILS_PER_BATCH: int = 1            # Send 1 email per Cloud Scheduler invocation for anti-spam rate limiting
-    SEND_DELAY_MIN_SEC: float = 900.0   # 15 minutes default
-    SEND_DELAY_MAX_SEC: float = 1200.0  # 20 minutes default
+    EMAILS_PER_BATCH: int = 10           # Batch of up to 10 emails per run with random sleep between sends
+    SEND_DELAY_MIN_SEC: float = 30.0    # 30 seconds minimum delay
+    SEND_DELAY_MAX_SEC: float = 90.0    # 90 seconds (1.5 minutes) maximum delay
 
     # Scraping & Time Filter Settings
     TIMEZONE: str = "Europe/Rome"

@@ -44,7 +44,6 @@ class TemplateService:
             .replace("{city}", city)
             .replace("{sector}", sector)
             .replace("{website}", website if website else "#")
-            .replace("{unsubscribe_url}", "#unsubscribe")
         )
 
         plain_text_body = (
