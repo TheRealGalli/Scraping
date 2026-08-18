@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Google Sheet Configuration
-    SPREADSHEET_ID: str = ""
+    SPREADSHEET_ID: str = "1Efim8M0IGMQ2jv2M57VJEUoRcGSAgci8rxOSBMZpcMY"
     SHEET_NAME: str = "Italy"
 
     # API Credentials & Vertex AI Configuration
