@@ -49,15 +49,26 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
     }
 }
 
-def generate_search_targets() -> Generator[Tuple[str, str, str, str, str], None, None]:
-    """
-    Generates an ordered stream of search tasks.
-    Yields tuple: (Region, Province, City, Sector, Keyword)
-    Starts from Lombardia as specified in requirements.
-    """
+def get_all_search_targets() -> List[Tuple[str, str, str, str, str]]:
+    """Generates full flat list of target tuples."""
+    targets = []
     for region, provinces in ITALY_GEO_TREE.items():
         for province, cities in provinces.items():
             for city in cities:
                 for sector, keywords in SECTORS.items():
                     for keyword in keywords:
-                        yield (region, province, city, sector, keyword)
+                        targets.append((region, province, city, sector, keyword))
+    return targets
+
+def generate_search_targets(offset: int = 0) -> Generator[Tuple[str, str, str, str, str], None, None]:
+    """
+    Generates an ordered stream of search tasks starting from given offset.
+    Yields tuple: (Region, Province, City, Sector, Keyword)
+    """
+    targets = get_all_search_targets()
+    total = len(targets)
+    if total == 0:
+        return
+    start = offset % total
+    for i in range(total):
+        yield targets[(start + i) % total]

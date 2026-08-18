@@ -42,15 +42,25 @@ def run_lead_generation_task():
 
     new_records: List[Dict[str, Any]] = []
     processed_count = 0
+    executed_queries = 0
+
+    # Calculate rotating query offset based on current timestamp
+    # Rotates starting query across the target matrix every run
+    rotation_period_sec = 180  # 3 minutes
+    start_offset = int((time.time() / rotation_period_sec) * settings.MAX_SEARCH_QUERIES_PER_RUN)
 
     # 3. Stream search targets from matrix
-    for region, province, city, sector, keyword in generate_search_targets():
+    for region, province, city, sector, keyword in generate_search_targets(offset=start_offset):
+        if executed_queries >= settings.MAX_SEARCH_QUERIES_PER_RUN:
+            logger.info(f"Reached MAX_SEARCH_QUERIES_PER_RUN limit ({settings.MAX_SEARCH_QUERIES_PER_RUN}). Stopping API calls for this run.")
+            break
         if processed_count >= settings.MAX_PLACES_PER_RUN:
             logger.info(f"Reached MAX_PLACES_PER_RUN limit ({settings.MAX_PLACES_PER_RUN}). Wrapping up execution batch.")
             break
 
+        executed_queries += 1
         query = f"{keyword} {city} {province} {region} Italia"
-        logger.info(f"Executing Places search for query: '{query}'")
+        logger.info(f"Executing Places search [{executed_queries}/{settings.MAX_SEARCH_QUERIES_PER_RUN}] for query: '{query}'")
 
         places = places_service.search_places(query, max_results=10)
 
@@ -69,8 +79,12 @@ def run_lead_generation_task():
                 logger.info(f"Level 1: Gemini Grounding direct search for '{business_name}'...")
                 email = email_extractor.find_email_via_gemini_search(business_name, city, website) or ""
 
-            # OPTIMIZATION LEVEL 2: HTML Scraping + Mailto: / Regex (0 AI tokens)
+            # OPTIMIZATION LEVEL 2: Fetch website & HTML Scraping + Mailto: / Regex (0 AI tokens)
             if not email:
+                if not website:
+                    # Low-cost Place Details single-place website fetch for new place
+                    website = places_service.get_place_website(place_id) or ""
+
                 if not website and business_name:
                     logger.info(f"Website missing for '{business_name}'. Custom Search API fallback...")
                     website = custom_search_service.search_website_fallback(business_name, city) or ""

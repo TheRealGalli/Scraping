@@ -12,10 +12,10 @@ class PlacesService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_API_KEY
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress") -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri"
+            "X-Goog-FieldMask": field_mask
         }
         if self.api_key:
             headers["X-Goog-Api-Key"] = self.api_key
@@ -83,3 +83,26 @@ class PlacesService:
         except Exception as e:
             logger.error(f"Failed to query Places API (New) for '{query}': {e}")
             return []
+
+    def get_place_website(self, place_id: str) -> str:
+        """
+        Fetches websiteUri for a specific place_id using Place Details API.
+        Executed ONLY for newly discovered leads to minimize API costs.
+        """
+        if not place_id:
+            return ""
+        headers = self._get_headers(field_mask="websiteUri")
+        if "X-Goog-Api-Key" not in headers and "Authorization" not in headers:
+            return ""
+
+        url = f"https://places.googleapis.com/v1/places/{place_id}"
+        try:
+            with httpx.Client(timeout=settings.HTTP_TIMEOUT) as client:
+                resp = client.get(url, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("websiteUri", "")
+                return ""
+        except Exception as e:
+            logger.warning(f"Failed to fetch website for place_id '{place_id}': {e}")
+            return ""
