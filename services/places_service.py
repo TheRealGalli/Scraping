@@ -12,20 +12,35 @@ class PlacesService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_API_KEY
 
+    def _get_headers(self) -> Dict[str, str]:
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri"
+        }
+        if self.api_key:
+            headers["X-Goog-Api-Key"] = self.api_key
+        else:
+            try:
+                import google.auth
+                from google.auth.transport.requests import Request
+                credentials, project = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+                credentials.refresh(Request())
+                headers["Authorization"] = f"Bearer {credentials.token}"
+                if project or settings.GCP_PROJECT:
+                    headers["X-Goog-User-Project"] = project or settings.GCP_PROJECT
+            except Exception as e:
+                logger.warning(f"Could not obtain Google ADC credentials for Places API: {e}")
+        return headers
+
     def search_places(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         Searches places using Google Places API (New) searchText endpoint.
         Returns a list of place dictionaries with place_id, name, address, website.
         """
-        if not self.api_key:
-            logger.warning("GOOGLE_API_KEY is not set. Places API search skipped.")
+        headers = self._get_headers()
+        if "X-Goog-Api-Key" not in headers and "Authorization" not in headers:
+            logger.warning("Neither GOOGLE_API_KEY nor ADC token is available. Places API search skipped.")
             return []
-
-        headers = {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri"
-        }
 
         body = {
             "textQuery": query,
