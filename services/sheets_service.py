@@ -21,10 +21,42 @@ class SheetsService:
 
     def _get_client(self):
         if not self.client:
+            import os
+            import json
+            from google.oauth2 import service_account
+
+            # 1. Check for JSON content in environment variable
+            sa_json_env = os.environ.get("GCP_SA_KEY") or os.environ.get("SERVICE_ACCOUNT_JSON")
+            if sa_json_env:
+                try:
+                    info = json.loads(sa_json_env)
+                    credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+                    self.client = gspread.authorize(credentials)
+                    logger.info("Authorized SheetsService using service account JSON from environment variable.")
+                    return self.client
+                except Exception as e:
+                    logger.warning(f"Could not load credentials from SA JSON environment variable: {e}")
+
+            # 2. Check for file path in GOOGLE_APPLICATION_CREDENTIALS or local json files
+            sa_file_env = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            possible_files = [sa_file_env] if sa_file_env else []
+            possible_files.extend(["service_account.json", "credentials.json", "sa_key.json"])
+
+            for file_path in possible_files:
+                if file_path and os.path.exists(file_path):
+                    try:
+                        self.client = gspread.service_account(filename=file_path, scopes=SCOPES)
+                        logger.info(f"Authorized SheetsService using service account file '{file_path}'.")
+                        return self.client
+                    except Exception as e:
+                        logger.warning(f"Could not load credentials from file '{file_path}': {e}")
+
+            # 3. Fallback to Google Application Default Credentials (ADC)
             credentials, _ = google.auth.default(scopes=SCOPES)
             if hasattr(credentials, "with_scopes"):
                 credentials = credentials.with_scopes(SCOPES)
             self.client = gspread.authorize(credentials)
+            logger.info("Authorized SheetsService using Google Default Credentials.")
         return self.client
 
     def _get_worksheet(self):
