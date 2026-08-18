@@ -13,8 +13,10 @@ _NFC_IMAGE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "temp
 
 class SMTPService:
     def __init__(self, sender_email: str = None, app_password: str = None):
-        self.sender_email = sender_email or settings.WORKSPACE_EMAIL
-        self.app_password = app_password or settings.WORKSPACE_APP_PASSWORD
+        raw_email = sender_email or settings.WORKSPACE_EMAIL
+        raw_pass = app_password or settings.WORKSPACE_APP_PASSWORD
+        self.sender_email = raw_email.strip() if raw_email else ""
+        self.app_password = raw_pass.replace(" ", "").strip() if raw_pass else ""
         self.smtp_host = settings.SMTP_HOST
         self.smtp_port = settings.SMTP_PORT
 
@@ -25,7 +27,7 @@ class SMTPService:
         Returns True if successful, False if sending fails.
         """
         if not self.sender_email or not self.app_password:
-            logger.error("WORKSPACE_EMAIL or WORKSPACE_APP_PASSWORD is not configured. SMTP send skipped.")
+            logger.error(f"WORKSPACE_EMAIL ('{self.sender_email}') or WORKSPACE_APP_PASSWORD ('{'set' if self.app_password else 'empty'}') is missing or not configured. SMTP send skipped.")
             return False
 
         if not to_email or "@" not in to_email:
@@ -74,5 +76,5 @@ class SMTPService:
             return True
 
         except Exception as e:
-            logger.error(f"SMTP error sending email to '{to_email}': {e}")
+            logger.error(f"SMTP error sending email to '{to_email}': {type(e).__name__} - {e}")
             return False
