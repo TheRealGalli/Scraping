@@ -37,19 +37,20 @@ def run_lead_generation_task():
     web_scraper = WebScraper()
     email_extractor = EmailExtractor()
 
-    # 2. Fetch existing Place IDs to avoid duplicates & token waste
+    # 2. Fetch existing Place IDs & stored matrix index from Google Sheets
     existing_place_ids = sheets_service.get_existing_place_ids()
+    start_offset = sheets_service.get_matrix_index()
+
+    from services.geo_matrix import get_all_search_targets
+    total_targets = len(get_all_search_targets())
 
     new_records: List[Dict[str, Any]] = []
     processed_count = 0
     executed_queries = 0
 
-    # Calculate rotating query offset based on current timestamp
-    # Rotates starting query across the target matrix every run
-    rotation_period_sec = 180  # 3 minutes
-    start_offset = int((time.time() / rotation_period_sec) * settings.MAX_SEARCH_QUERIES_PER_RUN)
+    logger.info(f"Starting matrix search from Google Sheets stored index {start_offset}/{total_targets}.")
 
-    # 3. Stream search targets from matrix
+    # 3. Stream search targets from matrix starting at stored offset
     for region, province, city, sector, keyword in generate_search_targets(offset=start_offset):
         if executed_queries >= settings.MAX_SEARCH_QUERIES_PER_RUN:
             logger.info(f"Reached MAX_SEARCH_QUERIES_PER_RUN limit ({settings.MAX_SEARCH_QUERIES_PER_RUN}). Stopping API calls for this run.")
@@ -122,7 +123,12 @@ def run_lead_generation_task():
             if processed_count >= settings.MAX_PLACES_PER_RUN:
                 break
 
-    # 4. Batch append new records to Google Sheet
+    # 4. Save updated matrix index to Google Sheets ConfigState tab for seamless continuation next run
+    if total_targets > 0 and executed_queries > 0:
+        next_index = (start_offset + executed_queries) % total_targets
+        sheets_service.update_matrix_index(next_index)
+
+    # 5. Batch append new records to Google Sheet
     if new_records:
         inserted = sheets_service.append_lead_records(new_records)
         logger.info(f"Successfully processed and appended {inserted} new lead records.")

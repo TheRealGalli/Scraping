@@ -207,3 +207,51 @@ class SheetsService:
         except Exception as e:
             logger.error(f"Error updating status for row {row_index}: {e}")
             return False
+
+    def get_matrix_index(self) -> int:
+        """
+        Reads stored matrix index from 'ConfigState' worksheet in Google Sheets.
+        Defaults to 0 if not present or unreadable.
+        """
+        try:
+            client = self._get_client()
+            spreadsheet = client.open_by_key(self.spreadsheet_id)
+            try:
+                state_ws = spreadsheet.worksheet("ConfigState")
+            except gspread.exceptions.WorksheetNotFound:
+                state_ws = spreadsheet.add_worksheet(title="ConfigState", rows="10", cols="3")
+                state_ws.append_row(["Key", "Value", "Last Updated"])
+                state_ws.append_row(["matrix_index", "0", ""])
+                return 0
+
+            val = state_ws.acell("B2").value
+            if val and str(val).strip().isdigit():
+                idx = int(str(val).strip())
+                logger.info(f"Loaded matrix_index={idx} from Google Sheets ConfigState tab.")
+                return idx
+            return 0
+        except Exception as e:
+            logger.warning(f"Could not read matrix_index from ConfigState sheet: {e}")
+            return 0
+
+    def update_matrix_index(self, next_index: int) -> bool:
+        """
+        Updates stored matrix index in 'ConfigState' worksheet cell B2.
+        """
+        try:
+            client = self._get_client()
+            spreadsheet = client.open_by_key(self.spreadsheet_id)
+            try:
+                state_ws = spreadsheet.worksheet("ConfigState")
+            except gspread.exceptions.WorksheetNotFound:
+                state_ws = spreadsheet.add_worksheet(title="ConfigState", rows="10", cols="3")
+                state_ws.append_row(["Key", "Value", "Last Updated"])
+
+            from services.time_filter import get_rome_time
+            now_str = get_rome_time().strftime("%Y-%m-%d %H:%M:%S")
+            state_ws.update(range_name="B2:C2", values=[[str(next_index), now_str]])
+            logger.info(f"Updated Google Sheets ConfigState matrix_index to {next_index}.")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating matrix_index in ConfigState sheet: {e}")
+            return False
