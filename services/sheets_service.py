@@ -61,7 +61,7 @@ class SheetsService:
             logger.info(f"Loaded {len(place_ids)} existing Place IDs from Google Sheet '{self.sheet_name}'.")
             return place_ids
         except Exception as e:
-            logger.error(f"Error fetching existing Place IDs from Google Sheet: {e}")
+            logger.error(f"Error fetching existing Place IDs from Google Sheet: {type(e).__name__} - {e}")
             return set()
 
     def append_lead_records(self, records: List[Dict[str, Any]]) -> int:
@@ -149,7 +149,7 @@ class SheetsService:
             logger.info(f"Found {len(pending_leads)} pending leads to send emails.")
             return pending_leads
         except Exception as e:
-            logger.error(f"Error fetching pending leads from Google Sheet: {e}")
+            logger.error(f"Error fetching pending leads from Google Sheet: {type(e).__name__} - {e}")
             return []
 
     def update_lead_status(self, row_index: int, success: bool, timestamp_str: str = "") -> bool:
