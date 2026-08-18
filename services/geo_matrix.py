@@ -28,24 +28,133 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
         "Sondrio": ["Sondrio", "Morbegno"]
     },
     "Lazio": {
-        "Roma": ["Roma", "Guidonia Montecelio", "Fiumicino", "Tivoli"],
-        "Latina": ["Latina", "Aprilia", "Terracina"],
-        "Frosinone": ["Frosinone", "Cassino"]
+        "Roma": ["Roma", "Guidonia Montecelio", "Fiumicino", "Tivoli", "Pomezia"],
+        "Latina": ["Latina", "Aprilia", "Terracina", "Formia"],
+        "Frosinone": ["Frosinone", "Cassino", "Alatri"],
+        "Viterbo": ["Viterbo", "Civitavecchia"],
+        "Rieti": ["Rieti"]
     },
     "Veneto": {
-        "Venezia": ["Venezia", "Mestre", "Chioggia"],
-        "Verona": ["Verona", "Villafranca di Verona"],
-        "Padova": ["Padova", "Vigonza"]
+        "Venezia": ["Venezia", "Mestre", "Chioggia", "San Donà di Piave"],
+        "Verona": ["Verona", "Villafranca di Verona", "Legnago"],
+        "Padova": ["Padova", "Vigonza", "Selvazzano Dentro"],
+        "Vicenza": ["Vicenza", "Bassano del Grappa", "Schio"],
+        "Treviso": ["Treviso", "Conegliano", "Castelfranco Veneto"],
+        "Rovigo": ["Rovigo", "Adria"],
+        "Belluno": ["Belluno", "Feltre"]
     },
     "Piemonte": {
-        "Torino": ["Torino", "Moncalieri", "Collegno"],
+        "Torino": ["Torino", "Moncalieri", "Collegno", "Rivoli", "Nichelino"],
         "Novara": ["Novara", "Trecate"],
-        "Alessandria": ["Alessandria", "Casale Monferrato"]
+        "Alessandria": ["Alessandria", "Casale Monferrato", "Novi Ligure"],
+        "Cuneo": ["Cuneo", "Alba", "Bra"],
+        "Asti": ["Asti"],
+        "Biella": ["Biella"],
+        "Vercelli": ["Vercelli"]
     },
     "Emilia-Romagna": {
-        "Bologna": ["Bologna", "Imola", "Casalecchio di Reno"],
-        "Modena": ["Modena", "Carpi", "Sassuolo"],
-        "Parma": ["Parma", "Fidenza"]
+        "Bologna": ["Bologna", "Imola", "Casalecchio di Reno", "San Lazzaro di Savena"],
+        "Modena": ["Modena", "Carpi", "Sassuolo", "Formigine"],
+        "Parma": ["Parma", "Fidenza"],
+        "Reggio Emilia": ["Reggio Emilia", "Correggio", "Scandiano"],
+        "Ravenna": ["Ravenna", "Faenza", "Lugo"],
+        "Forlì-Cesena": ["Forlì", "Cesena"],
+        "Rimini": ["Rimini", "Riccione"],
+        "Ferrara": ["Ferrara", "Cento"],
+        "Piacenza": ["Piacenza"]
+    },
+    "Toscana": {
+        "Firenze": ["Firenze", "Scandicci", "Sesto Fiorentino", "Empoli"],
+        "Prato": ["Prato"],
+        "Livorno": ["Livorno", "Piombino"],
+        "Arezzo": ["Arezzo"],
+        "Pistoia": ["Pistoia", "Montecatini Terme"],
+        "Pisa": ["Pisa", "Cascina"],
+        "Lucca": ["Lucca", "Viareggio"],
+        "Grosseto": ["Grosseto"],
+        "Massa-Carrara": ["Massa", "Carrara"],
+        "Siena": ["Siena"]
+    },
+    "Campania": {
+        "Napoli": ["Napoli", "Giugliano in Campania", "Torre del Greco", "Pozzuoli", "Casoria"],
+        "Salerno": ["Salerno", "Cava de' Tirreni", "Battipaglia"],
+        "Caserta": ["Caserta", "Aversa", "Marcianise"],
+        "Avellino": ["Avellino"],
+        "Benevento": ["Benevento"]
+    },
+    "Sicilia": {
+        "Palermo": ["Palermo", "Bagheria", "Monreale"],
+        "Catania": ["Catania", "Acireale", "Misterbianco"],
+        "Messina": ["Messina", "Barcellona Pozzo di Gotto"],
+        "Agrigento": ["Agrigento", "Sciacca"],
+        "Trapani": ["Trapani", "Marsala"],
+        "Siracusa": ["Siracusa"],
+        "Ragusa": ["Ragusa", "Modica"],
+        "Caltanissetta": ["Caltanissetta"],
+        "Enna": ["Enna"]
+    },
+    "Puglia": {
+        "Bari": ["Bari", "Altamura", "Molfetta", "Bitonto"],
+        "Taranto": ["Taranto", "Martina Franca"],
+        "Foggia": ["Foggia", "Cerignola", "Manfredonia"],
+        "Lecce": ["Lecce", "Nardò"],
+        "Barletta-Andria-Trani": ["Andria", "Barletta", "Trani"],
+        "Brindisi": ["Brindisi"]
+    },
+    "Liguria": {
+        "Genova": ["Genova", "Rapallo", "Chiavari"],
+        "La Spezia": ["La Spezia", "Sarzana"],
+        "Savona": ["Savona", "Albenga"],
+        "Imperia": ["Imperia", "Sanremo"]
+    },
+    "Marche": {
+        "Ancona": ["Ancona", "Senigallia", "Jesi"],
+        "Pesaro e Urbino": ["Pesaro", "Fano", "Urbino"],
+        "Macerata": ["Macerata", "Civitanova Marche"],
+        "Ascoli Piceno": ["Ascoli Piceno", "San Benedetto del Tronto"],
+        "Fermo": ["Fermo"]
+    },
+    "Abruzzo": {
+        "Pescara": ["Pescara", "Montesilvano"],
+        "L'Aquila": ["L'Aquila", "Avezzano"],
+        "Chieti": ["Chieti", "Vasto"],
+        "Teramo": ["Teramo"]
+    },
+    "Friuli-Venezia Giulia": {
+        "Trieste": ["Trieste"],
+        "Udine": ["Udine"],
+        "Pordenone": ["Pordenone"],
+        "Gorizia": ["Gorizia", "Monfalcone"]
+    },
+    "Trentino-Alto Adige": {
+        "Trento": ["Trento", "Rovereto"],
+        "Bolzano": ["Bolzano", "Merano"]
+    },
+    "Umbria": {
+        "Perugia": ["Perugia", "Foligno", "Città di Castello"],
+        "Terni": ["Terni"]
+    },
+    "Sardegna": {
+        "Cagliari": ["Cagliari", "Quartu Sant'Elena"],
+        "Sassari": ["Sassari", "Alghero"],
+        "Nuoro": ["Nuoro"],
+        "Oristano": ["Oristano"]
+    },
+    "Calabria": {
+        "Reggio Calabria": ["Reggio Calabria"],
+        "Catanzaro": ["Catanzaro", "Lamezia Terme"],
+        "Cosenza": ["Cosenza", "Corigliano-Rossano"]
+    },
+    "Basilicata": {
+        "Potenza": ["Potenza"],
+        "Matera": ["Matera"]
+    },
+    "Molise": {
+        "Campobasso": ["Campobasso", "Termoli"],
+        "Isernia": ["Isernia"]
+    },
+    "Valle d'Aosta": {
+        "Aosta": ["Aosta"]
     }
 }
 
