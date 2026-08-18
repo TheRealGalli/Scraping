@@ -73,7 +73,7 @@ class SheetsService:
 
     def _ensure_headers(self):
         """Ensures header row is present in the worksheet."""
-        headers = ["Place ID", "Regione", "Provincia", "Città", "Settore", "Sito Web", "Email", "Stato Invio", "Data Invio"]
+        headers = ["Place ID", "Regione", "Provincia", "Città", "Settore", "Sito Web", "Email", "Stato Invio", "Data Invio", "Rating", "Recensioni"]
         existing = self.sheet.row_values(1)
         if not existing:
             self.sheet.append_row(headers)
@@ -102,9 +102,9 @@ class SheetsService:
         """
         Appends a list of lead records to the worksheet.
         Each record dictionary contains:
-        place_id, region, province, city, sector, website, email
+        place_id, region, province, city, sector, website, email, rating, user_rating_count
         
-        Formats to 9 columns:
+        Formats to 11 columns:
         1. Place ID
         2. Regione
         3. Provincia
@@ -114,6 +114,8 @@ class SheetsService:
         7. Email
         8. Stato Invio ("Da inviare" if email present else "Nessuna email")
         9. Data Invio (empty)
+        10. Rating
+        11. Recensioni
         """
         if not records:
             return 0
@@ -122,6 +124,10 @@ class SheetsService:
         for r in records:
             email = (r.get("email") or "").strip()
             stato_invio = "Da inviare" if email else "Nessuna email"
+            rating_val = r.get("rating", "")
+            rating_str = str(rating_val) if rating_val is not None else ""
+            reviews_val = r.get("user_rating_count", "")
+            reviews_str = str(reviews_val) if reviews_val is not None else ""
             
             row = [
                 r.get("place_id", "").strip(),
@@ -132,7 +138,9 @@ class SheetsService:
                 r.get("website", "").strip(),
                 email,
                 stato_invio,
-                ""  # Data Invio (empty)
+                "",  # Data Invio (empty)
+                rating_str,
+                reviews_str
             ]
             rows_to_append.append(row)
 

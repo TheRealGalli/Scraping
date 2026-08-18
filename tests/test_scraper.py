@@ -92,3 +92,24 @@ def test_worker_endpoint_invocation():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ["skipped", "completed"]
+
+def test_places_service_rating_and_sorting():
+    from services.places_service import PlacesService
+    ps = PlacesService(api_key="TEST_KEY")
+    headers = ps._get_headers()
+    assert "places.rating" in headers["X-Goog-FieldMask"]
+    assert "places.userRatingCount" in headers["X-Goog-FieldMask"]
+
+    # Test review count sorting logic
+    test_places = [
+        {"place_id": "1", "name": "Famous Place", "user_rating_count": 500},
+        {"place_id": "2", "name": "Local Place", "user_rating_count": 45},
+        {"place_id": "3", "name": "Medium Place", "user_rating_count": 120}
+    ]
+    test_places.sort(key=lambda p: (
+        0 if (p.get("user_rating_count") or 9999) <= 200 else 1,
+        p.get("user_rating_count") or 9999
+    ))
+    assert test_places[0]["place_id"] == "2"  # 45 reviews comes first
+    assert test_places[1]["place_id"] == "3"  # 120 reviews comes second
+    assert test_places[2]["place_id"] == "1"  # 500 reviews comes last

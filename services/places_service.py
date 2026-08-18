@@ -12,7 +12,7 @@ class PlacesService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_API_KEY
 
-    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress") -> Dict[str, str]:
+    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount") -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-FieldMask": field_mask
@@ -32,10 +32,10 @@ class PlacesService:
                 logger.warning(f"Could not obtain Google ADC credentials for Places API: {e}")
         return headers
 
-    def search_places(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    def search_places(self, query: str, max_results: int = 10, min_rating: float = None) -> List[Dict[str, Any]]:
         """
         Searches places using Google Places API (New) searchText endpoint.
-        Returns a list of place dictionaries with place_id, name, address, website.
+        Returns a list of place dictionaries with place_id, name, address, website, rating, user_rating_count.
         """
         headers = self._get_headers()
         if "X-Goog-Api-Key" not in headers and "Authorization" not in headers:
@@ -47,6 +47,8 @@ class PlacesService:
             "languageCode": "it",
             "pageSize": min(max_results, 20)
         }
+        if min_rating is not None:
+            body["minRating"] = float(min_rating)
 
         try:
             with httpx.Client(timeout=settings.HTTP_TIMEOUT) as client:
@@ -69,12 +71,16 @@ class PlacesService:
                     name = display_name_obj.get("text", "") if isinstance(display_name_obj, dict) else str(display_name_obj)
                     address = p.get("formattedAddress", "")
                     website = p.get("websiteUri", "")
+                    rating = p.get("rating", None)
+                    user_rating_count = p.get("userRatingCount", None)
 
                     results.append({
                         "place_id": place_id,
                         "name": name,
                         "address": address,
-                        "website": website
+                        "website": website,
+                        "rating": rating,
+                        "user_rating_count": user_rating_count
                     })
                 
                 logger.info(f"Places API returned {len(results)} results for query: '{query}'")

@@ -65,6 +65,12 @@ def run_lead_generation_task():
 
         places = places_service.search_places(query, max_results=10)
 
+        # Prioritize local businesses with <= 200 reviews to target less competitive/higher potential leads
+        places.sort(key=lambda p: (
+            0 if (p.get("user_rating_count") or 9999) <= 200 else 1,
+            p.get("user_rating_count") or 9999
+        ))
+
         for place in places:
             place_id = place.get("place_id")
             if not place_id or place_id in existing_place_ids:
@@ -73,6 +79,8 @@ def run_lead_generation_task():
 
             business_name = place.get("name", "")
             website = place.get("website", "")
+            rating = place.get("rating")
+            user_rating_count = place.get("user_rating_count")
             email = ""
 
             # OPTIMIZATION LEVEL 1: Direct Gemini Grounding search (DISABLED by default to avoid Vertex AI costs)
@@ -112,7 +120,9 @@ def run_lead_generation_task():
                 "city": city,
                 "sector": sector,
                 "website": website,
-                "email": email
+                "email": email,
+                "rating": rating,
+                "user_rating_count": user_rating_count
             }
 
             new_records.append(record)

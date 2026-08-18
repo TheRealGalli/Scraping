@@ -6,15 +6,27 @@ Structure: Region -> Province -> City -> Sector -> Keyword
 from typing import List, Dict, Generator, Tuple
 
 SECTORS: Dict[str, List[str]] = {
-    "Ristorazione": ["ristorante", "pizzeria", "trattoria"],
-    "Studi Professionali": ["studio legale avvocato", "dentista", "notaio"],
-    "Centri e Servizi": ["centro estetico", "parrucchiere", "galleria d'arte"],
-    "Hospitality": ["hotel", "bed and breakfast", "albergo"]
+    "Ristorazione": [
+        "ristorante", "pizzeria", "trattoria", "osteria", 
+        "pizzeria d'asporto", "pizzeria al taglio", "pub e birreria", 
+        "bistrot", "sushi e poké", "tavola calda"
+    ],
+    "Studi Professionali": [
+        "studio legale avvocato", "avvocato penalista", "avvocato civilista", 
+        "dentista", "studio dentistico", "notaio", "studio commercialista"
+    ],
+    "Centri e Servizi": [
+        "centro estetico", "parrucchiere", "salone barbiere", 
+        "spa centro benessere", "galleria d'arte", "palestra e fitness"
+    ],
+    "Hospitality": [
+        "hotel", "bed and breakfast", "albergo", "affittacamere", "agriturismo"
+    ]
 }
 
 ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
     "Lombardia": {
-        "Milano": ["Milano", "Sesto San Giovanni", "Cinisello Balsamo", "Legnano", "Rho"],
+        "Milano": ["Milano", "Milano Navigli", "Milano Brera", "Milano Isola", "Milano Porta Romana", "Milano Baggio", "Sesto San Giovanni", "Cinisello Balsamo", "Legnano", "Rho"],
         "Monza e Brianza": ["Monza", "Seregno", "Lissone", "Desio"],
         "Bergamo": ["Bergamo", "Treviglio", "Seriate"],
         "Brescia": ["Brescia", "Desenzano del Garda", "Montichiari"],
@@ -28,7 +40,7 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
         "Sondrio": ["Sondrio", "Morbegno"]
     },
     "Lazio": {
-        "Roma": ["Roma", "Guidonia Montecelio", "Fiumicino", "Tivoli", "Pomezia"],
+        "Roma": ["Roma", "Roma Trastevere", "Roma Prati", "Roma EUR", "Roma Parioli", "Roma San Lorenzo", "Guidonia Montecelio", "Fiumicino", "Tivoli", "Pomezia"],
         "Latina": ["Latina", "Aprilia", "Terracina", "Formia"],
         "Frosinone": ["Frosinone", "Cassino", "Alatri"],
         "Viterbo": ["Viterbo", "Civitavecchia"],
@@ -44,7 +56,7 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
         "Belluno": ["Belluno", "Feltre"]
     },
     "Piemonte": {
-        "Torino": ["Torino", "Moncalieri", "Collegno", "Rivoli", "Nichelino"],
+        "Torino": ["Torino", "Torino Crocetta", "Torino San Salvario", "Torino Vanchiglia", "Moncalieri", "Collegno", "Rivoli", "Nichelino"],
         "Novara": ["Novara", "Trecate"],
         "Alessandria": ["Alessandria", "Casale Monferrato", "Novi Ligure"],
         "Cuneo": ["Cuneo", "Alba", "Bra"],
@@ -53,7 +65,7 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
         "Vercelli": ["Vercelli"]
     },
     "Emilia-Romagna": {
-        "Bologna": ["Bologna", "Imola", "Casalecchio di Reno", "San Lazzaro di Savena"],
+        "Bologna": ["Bologna", "Bologna Saragozza", "Bologna Bolognina", "Imola", "Casalecchio di Reno", "San Lazzaro di Savena"],
         "Modena": ["Modena", "Carpi", "Sassuolo", "Formigine"],
         "Parma": ["Parma", "Fidenza"],
         "Reggio Emilia": ["Reggio Emilia", "Correggio", "Scandiano"],
