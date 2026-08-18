@@ -29,14 +29,15 @@ def run_email_sender_task():
     template_service = TemplateService()
     smtp_service = SMTPService()
 
-    # 2. Fetch pending leads where Col H == 'Da inviare'
-    pending_leads: List[Dict[str, Any]] = sheets_service.get_pending_leads(limit=settings.MAX_DAILY_EMAILS)
+    # 2. Fetch pending leads (default 1 lead per run for anti-spam rate limiting via Cloud Scheduler)
+    max_emails_this_run = getattr(settings, "EMAILS_PER_BATCH", 1)
+    pending_leads: List[Dict[str, Any]] = sheets_service.get_pending_leads(limit=max_emails_this_run)
 
     if not pending_leads:
         logger.info("No pending leads ('Da inviare') found in Google Sheet. Execution completed.")
         return
 
-    logger.info(f"Loaded {len(pending_leads)} pending leads for email dispatch.")
+    logger.info(f"Loaded {len(pending_leads)} pending lead(s) for email dispatch (Batch size: {max_emails_this_run}).")
 
     sent_count = 0
 
