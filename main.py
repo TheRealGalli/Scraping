@@ -33,13 +33,13 @@ def health_check():
     }
 
 @app.api_route("/worker", methods=["GET", "POST"], tags=["Worker"])
-def trigger_worker(background_tasks: BackgroundTasks):
+def trigger_worker():
     """
     Cloud Scheduler Invocation Endpoint (/worker).
     
     1. Checks Italy (Europe/Rome) time.
     2. If between 22:00 and 06:00 (Anti-Night filter), returns 200 OK immediately without API usage.
-    3. Otherwise, delegates scraper task execution to BackgroundTasks and responds 200 OK immediately.
+    3. Otherwise, executes lead generation task synchronously so Cloud Run keeps CPU active until finished.
     """
     now_rome = get_rome_time()
     formatted_time = now_rome.strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -56,27 +56,27 @@ def trigger_worker(background_tasks: BackgroundTasks):
             }
         )
 
-    # Dispatch background task for lead generation
-    logger.info(f"[/worker] Daytime execution triggered at {formatted_time}. Launching worker task in background.")
-    background_tasks.add_task(run_lead_generation_task)
+    # Execute task synchronously during request to prevent Cloud Run CPU throttling
+    logger.info(f"[/worker] Daytime execution triggered at {formatted_time}. Running worker task...")
+    run_lead_generation_task()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "status": "processing",
-            "message": "Lead generation background worker started successfully",
+            "status": "completed",
+            "message": "Lead generation worker task executed successfully",
             "timestamp": formatted_time
         }
     )
 
 @app.api_route("/send-emails", methods=["GET", "POST"], tags=["Sender"])
-def trigger_email_sender(background_tasks: BackgroundTasks):
+def trigger_email_sender():
     """
     Cloud Scheduler Invocation Endpoint (/send-emails).
     
     1. Checks Italy (Europe/Rome) daytime operating hours (06:00 - 22:00).
     2. If outside window, returns 200 OK immediately without SMTP calls.
-    3. Otherwise, delegates email sender task execution to BackgroundTasks and responds 200 OK immediately.
+    3. Otherwise, executes email sender task synchronously so Cloud Run keeps CPU active until finished.
     """
     now_rome = get_rome_time()
     formatted_time = now_rome.strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -92,14 +92,14 @@ def trigger_email_sender(background_tasks: BackgroundTasks):
             }
         )
 
-    logger.info(f"[/send-emails] Daytime sender triggered at {formatted_time}. Launching email sender task in background.")
-    background_tasks.add_task(run_email_sender_task)
+    logger.info(f"[/send-emails] Daytime sender triggered at {formatted_time}. Running email sender task...")
+    run_email_sender_task()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "status": "processing",
-            "message": "Email sender background worker started successfully",
+            "status": "completed",
+            "message": "Email sender worker task executed successfully",
             "timestamp": formatted_time
         }
     )
