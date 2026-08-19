@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     NIGHT_END_HOUR: int = 6     # 06:00
     HTTP_TIMEOUT: float = 4.0   # seconds per page fetch
     MAX_PLACES_PER_RUN: int = 10
-    MAX_SEARCH_QUERIES_PER_RUN: int = 3  # COST CONTROL: Max Places API text search calls per run (Essentials: €0.005/call)
+    MAX_SEARCH_QUERIES_PER_RUN: int = 1  # COST CONTROL: Exactly 1 Places API call per run to stay well within 160/day limit
     SLEEP_BETWEEN_CALLS: float = 0.5  # seconds delay for rate limiting
 
     model_config = SettingsConfigDict(
