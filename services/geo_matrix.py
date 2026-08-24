@@ -17,10 +17,26 @@ SECTORS: Dict[str, List[str]] = {
     ],
     "Centri e Servizi": [
         "centro estetico", "parrucchiere", "salone barbiere", 
-        "spa centro benessere", "galleria d'arte", "palestra e fitness"
+        "spa centro benessere", "galleria d'arte"
     ],
     "Hospitality": [
         "hotel", "bed and breakfast", "albergo", "affittacamere", "agriturismo"
+    ],
+    "Boutique e Retail": [
+        "boutique", "negozio abbigliamento", "negozio scarpe e calzature", 
+        "negozio streetwear", "boutique moda"
+    ],
+    "Automotive": [
+        "officina meccanica", "gommista", "concessionaria auto", 
+        "concessionario moto", "carrozzeria"
+    ],
+    "Fitness e Sport": [
+        "palestra e centro fitness", "personal trainer", 
+        "studio pilates e yoga", "box crossfit", "centro sportivo"
+    ],
+    "Veterinaria e Pet Care": [
+        "clinica veterinaria", "ambulatorio veterinario", 
+        "toelettatura animali", "pet shop negozio animali"
     ]
 }
 
