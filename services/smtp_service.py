@@ -38,7 +38,10 @@ class SMTPService:
             # Use 'related' to allow inline CID image references inside the HTML part
             msg_root = MIMEMultipart("mixed")
             msg_root["Subject"] = subject
-            msg_root["From"] = self.sender_email
+            if settings.SENDER_NAME:
+                msg_root["From"] = f"{settings.SENDER_NAME} <{self.sender_email}>"
+            else:
+                msg_root["From"] = self.sender_email
             msg_root["To"] = to_email
 
             # Alternative container (plain + html)

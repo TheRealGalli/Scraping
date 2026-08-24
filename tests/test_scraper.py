@@ -113,3 +113,19 @@ def test_places_service_rating_and_sorting():
     assert test_places[0]["place_id"] == "2"  # 45 reviews comes first
     assert test_places[1]["place_id"] == "3"  # 120 reviews comes second
     assert test_places[2]["place_id"] == "1"  # 500 reviews comes last
+
+def test_cron_secret_security():
+    from config import settings
+    settings.CRON_SECRET = "supersecret123"
+    
+    # Missing secret -> 401
+    resp_unauth = client.post("/worker")
+    assert resp_unauth.status_code == 401
+    
+    # Correct secret header -> 200
+    resp_auth = client.post("/worker", headers={"X-Cron-Secret": "supersecret123"})
+    assert resp_auth.status_code == 200
+    
+    # Reset
+    settings.CRON_SECRET = ""
+

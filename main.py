@@ -1,7 +1,8 @@
 import logging
-from fastapi import FastAPI, BackgroundTasks, status
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from config import settings
 from services.time_filter import is_night_time, is_sender_operating_hours, get_rome_time
 from services.worker import run_lead_generation_task
 from services.sender_worker import run_email_sender_task
@@ -19,6 +20,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+def _is_unauthorized(request: Request) -> bool:
+    """Verifies CRON_SECRET header or query parameter if CRON_SECRET is configured."""
+    if not settings.CRON_SECRET:
+        return False
+    header_secret = request.headers.get("X-Cron-Secret")
+    query_secret = request.query_params.get("secret")
+    return header_secret != settings.CRON_SECRET and query_secret != settings.CRON_SECRET
+
 @app.get("/", tags=["Health"])
 @app.get("/health", tags=["Health"])
 def health_check():
@@ -33,14 +42,22 @@ def health_check():
     }
 
 @app.api_route("/worker", methods=["GET", "POST"], tags=["Worker"])
-def trigger_worker():
+def trigger_worker(request: Request):
     """
     Cloud Scheduler Invocation Endpoint (/worker).
     
-    1. Checks Italy (Europe/Rome) time.
-    2. If between 22:00 and 06:00 (Anti-Night filter), returns 200 OK immediately without API usage.
-    3. Otherwise, executes lead generation task synchronously so Cloud Run keeps CPU active until finished.
+    1. Validates CRON_SECRET header (X-Cron-Secret) or query parameter if CRON_SECRET is set.
+    2. Checks Italy (Europe/Rome) time.
+    3. If between 22:00 and 06:00 (Anti-Night filter), returns 200 OK immediately without API usage.
+    4. Otherwise, executes lead generation task synchronously so Cloud Run keeps CPU active until finished.
     """
+    if _is_unauthorized(request):
+        logger.warning("[/worker] Unauthorized request: Invalid or missing X-Cron-Secret.")
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"status": "error", "message": "Unauthorized: Invalid or missing CRON_SECRET"}
+        )
+
     now_rome = get_rome_time()
     formatted_time = now_rome.strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -70,14 +87,22 @@ def trigger_worker():
     )
 
 @app.api_route("/send-emails", methods=["GET", "POST"], tags=["Sender"])
-def trigger_email_sender():
+def trigger_email_sender(request: Request):
     """
     Cloud Scheduler Invocation Endpoint (/send-emails).
     
-    1. Checks Italy (Europe/Rome) daytime operating hours (06:00 - 22:00).
-    2. If outside window, returns 200 OK immediately without SMTP calls.
-    3. Otherwise, executes email sender task synchronously so Cloud Run keeps CPU active until finished.
+    1. Validates CRON_SECRET header (X-Cron-Secret) or query parameter if CRON_SECRET is set.
+    2. Checks Italy (Europe/Rome) daytime operating hours (06:00 - 22:00).
+    3. If outside window, returns 200 OK immediately without SMTP calls.
+    4. Otherwise, executes email sender task synchronously so Cloud Run keeps CPU active until finished.
     """
+    if _is_unauthorized(request):
+        logger.warning("[/send-emails] Unauthorized request: Invalid or missing X-Cron-Secret.")
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"status": "error", "message": "Unauthorized: Invalid or missing CRON_SECRET"}
+        )
+
     now_rome = get_rome_time()
     formatted_time = now_rome.strftime("%Y-%m-%d %H:%M:%S %Z")
 
