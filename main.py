@@ -21,11 +21,11 @@ app = FastAPI(
 )
 
 def _is_unauthorized(request: Request) -> bool:
-    """Verifies CRON_SECRET header or query parameter if CRON_SECRET is configured."""
+    """Verifies CRON_SECRET header (X-Cron-Secret) or query parameter (?key=... or ?secret=...) if CRON_SECRET is configured."""
     if not settings.CRON_SECRET:
         return False
     header_secret = request.headers.get("X-Cron-Secret")
-    query_secret = request.query_params.get("secret")
+    query_secret = request.query_params.get("key") or request.query_params.get("secret")
     return header_secret != settings.CRON_SECRET and query_secret != settings.CRON_SECRET
 
 @app.get("/", tags=["Health"])

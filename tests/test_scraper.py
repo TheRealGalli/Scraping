@@ -123,8 +123,16 @@ def test_cron_secret_security():
     assert resp_unauth.status_code == 401
     
     # Correct secret header -> 200
-    resp_auth = client.post("/worker", headers={"X-Cron-Secret": "supersecret123"})
-    assert resp_auth.status_code == 200
+    resp_auth_header = client.post("/worker", headers={"X-Cron-Secret": "supersecret123"})
+    assert resp_auth_header.status_code == 200
+
+    # Correct secret query param ?key= -> 200
+    resp_auth_key = client.get("/worker?key=supersecret123")
+    assert resp_auth_key.status_code == 200
+
+    # Correct secret query param ?secret= -> 200
+    resp_auth_secret = client.get("/worker?secret=supersecret123")
+    assert resp_auth_secret.status_code == 200
     
     # Reset
     settings.CRON_SECRET = ""
