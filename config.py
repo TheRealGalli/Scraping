@@ -27,8 +27,6 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     MAX_DAILY_EMAILS: int = 50
     EMAILS_PER_BATCH: int = 1            # Send 1 email per Cloud Scheduler invocation
-    SEND_DELAY_MIN_SEC: float = 30.0    # Optional delay range
-    SEND_DELAY_MAX_SEC: float = 90.0
 
     # API Security & Protection
     CRON_SECRET: str = ""                # Optional secret token to protect /worker and /send-emails endpoints

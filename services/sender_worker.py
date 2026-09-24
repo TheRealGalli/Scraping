@@ -77,11 +77,4 @@ def run_email_sender_task():
         if success:
             sent_count += 1
 
-        # Apply dynamic anti-spam delay between sends (15-20 minutes, unless last lead in batch)
-        if idx < len(pending_leads) - 1 and sent_count < settings.MAX_DAILY_EMAILS:
-            delay_sec = random.uniform(settings.SEND_DELAY_MIN_SEC, settings.SEND_DELAY_MAX_SEC)
-            delay_min = delay_sec / 60.0
-            logger.info(f"Anti-spam delay: pausing for {delay_min:.1f} minutes ({delay_sec:.0f}s) before next send...")
-            time.sleep(delay_sec)
-
-    logger.info(f"Email Sender worker completed. Sent {sent_count} emails in this batch.")
+    logger.info(f"Email Sender worker completed. Sent {sent_count} email(s) in this batch.")

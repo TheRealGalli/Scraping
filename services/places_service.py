@@ -12,7 +12,7 @@ class PlacesService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_API_KEY
 
-    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount") -> Dict[str, str]:
+    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.rating,places.userRatingCount") -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-FieldMask": field_mask

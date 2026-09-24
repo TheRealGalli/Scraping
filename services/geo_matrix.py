@@ -24,19 +24,23 @@ SECTORS: Dict[str, List[str]] = {
     ],
     "Boutique e Retail": [
         "boutique", "negozio abbigliamento", "negozio scarpe e calzature", 
-        "negozio streetwear", "boutique moda"
+        "negozio streetwear", "boutique moda", "negozio accessori moda", 
+        "negozio borse e pelletteria", "gioielleria", "ottica"
     ],
     "Automotive": [
         "officina meccanica", "gommista", "concessionaria auto", 
-        "concessionario moto", "carrozzeria"
+        "concessionario moto", "carrozzeria", "elettrauto", 
+        "autolavaggio", "centro revisioni"
     ],
     "Fitness e Sport": [
         "palestra e centro fitness", "personal trainer", 
-        "studio pilates e yoga", "box crossfit", "centro sportivo"
+        "studio pilates e yoga", "box crossfit", "centro sportivo", 
+        "scuola arti marziali", "padel club", "centro danza"
     ],
     "Veterinaria e Pet Care": [
         "clinica veterinaria", "ambulatorio veterinario", 
-        "toelettatura animali", "pet shop negozio animali"
+        "toelettatura animali", "pet shop negozio animali", 
+        "ospedale veterinario", "pensione per cani e gatti"
     ]
 }
 
