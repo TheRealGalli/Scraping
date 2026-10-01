@@ -90,10 +90,6 @@ def run_lead_generation_task():
 
             # OPTIMIZATION LEVEL 2: Fetch website & HTML Scraping + Mailto: / Regex (0 AI tokens)
             if not email:
-                if not website:
-                    # Low-cost Place Details single-place website fetch for new place
-                    website = places_service.get_place_website(place_id) or ""
-
                 if not website and business_name:
                     logger.info(f"Website missing for '{business_name}'. Custom Search API fallback...")
                     website = custom_search_service.search_website_fallback(business_name, city) or ""
