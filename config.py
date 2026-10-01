@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     MAX_SEARCH_QUERIES_PER_RUN: int = 1  # COST CONTROL: Exactly 1 Places API call per run to stay well within 160/day limit
     SLEEP_BETWEEN_CALLS: float = 0.5  # seconds delay for rate limiting
 
+    # Lead Target Qualification Filters (e.g. ideal businesses needing review growth)
+    TARGET_MIN_RATING: float = 2.0
+    TARGET_MAX_RATING: float = 4.0
+    TARGET_MAX_REVIEWS: int = 1000
+    TARGET_INCLUDE_NO_RATING: bool = False  # Set to True to also accept businesses with no rating/reviews yet
+
+    # Geo Matrix Alternation (cycles of all 8 sectors per city before advancing)
+    CYCLES_PER_CITY: int = 1  # 1 cycle = all 8 sectors once in the city, then next city
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

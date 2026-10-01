@@ -61,6 +61,20 @@ def test_geo_matrix_generation():
     assert first_target[2] == "Milano"
     assert first_target[3] in SECTORS
 
+def test_geo_matrix_alternation():
+    targets = list(generate_search_targets(offset=0))[:16]
+    # First 8 should all be Milano, alternating all 8 sectors
+    milano_sectors = [t[3] for t in targets[:8]]
+    assert len(set(milano_sectors)) == 8
+    for t in targets[:8]:
+        assert t[2] == "Milano"
+    
+    # Next 8 should be the next city (Milano Navigli), alternating all 8 sectors
+    navigli_sectors = [t[3] for t in targets[8:16]]
+    assert len(set(navigli_sectors)) == 8
+    for t in targets[8:16]:
+        assert t[2] == "Milano Navigli"
+
 def test_web_scraper_html_cleaning():
     scraper = WebScraper()
     raw_html = """
@@ -100,19 +114,43 @@ def test_places_service_rating_and_sorting():
     assert "places.rating" in headers["X-Goog-FieldMask"]
     assert "places.userRatingCount" in headers["X-Goog-FieldMask"]
 
-    # Test review count sorting logic
+    # Test review count sorting logic (ascending)
     test_places = [
         {"place_id": "1", "name": "Famous Place", "user_rating_count": 500},
         {"place_id": "2", "name": "Local Place", "user_rating_count": 45},
         {"place_id": "3", "name": "Medium Place", "user_rating_count": 120}
     ]
     test_places.sort(key=lambda p: (
-        0 if (p.get("user_rating_count") or 9999) <= 200 else 1,
-        p.get("user_rating_count") or 9999
+        p.get("user_rating_count") if p.get("user_rating_count") is not None else 999999
     ))
     assert test_places[0]["place_id"] == "2"  # 45 reviews comes first
     assert test_places[1]["place_id"] == "3"  # 120 reviews comes second
     assert test_places[2]["place_id"] == "1"  # 500 reviews comes last
+
+def test_target_lead_qualification_filter():
+    from config import settings
+    
+    # Target: 2.0 <= rating <= 4.0 and reviews < 1000
+    candidates = [
+        {"name": "Ideal Target", "rating": 3.4, "user_rating_count": 120},
+        {"name": "Too Good", "rating": 4.7, "user_rating_count": 250},
+        {"name": "Too Bad", "rating": 1.5, "user_rating_count": 50},
+        {"name": "Too Popular", "rating": 3.8, "user_rating_count": 2400},
+        {"name": "Upper Bound", "rating": 4.0, "user_rating_count": 999},
+        {"name": "Lower Bound", "rating": 2.0, "user_rating_count": 5},
+    ]
+
+    qualified = []
+    for c in candidates:
+        r = c.get("rating")
+        cnt = c.get("user_rating_count")
+        if r is not None and (r < settings.TARGET_MIN_RATING or r > settings.TARGET_MAX_RATING):
+            continue
+        if cnt is not None and cnt >= settings.TARGET_MAX_REVIEWS:
+            continue
+        qualified.append(c["name"])
+
+    assert qualified == ["Ideal Target", "Upper Bound", "Lower Bound"]
 
 def test_cron_secret_security():
     from config import settings

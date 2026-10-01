@@ -190,26 +190,68 @@ ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
     }
 }
 
-def get_all_search_targets() -> List[Tuple[str, str, str, str, str]]:
-    """Generates full flat list of target tuples."""
-    targets = []
+def get_all_cities() -> List[Tuple[str, str, str]]:
+    """Returns flat list of all (Region, Province, City) tuples across Italy."""
+    cities = []
     for region, provinces in ITALY_GEO_TREE.items():
-        for province, cities in provinces.items():
-            for city in cities:
-                for sector, keywords in SECTORS.items():
-                    for keyword in keywords:
-                        targets.append((region, province, city, sector, keyword))
+        for province, city_list in provinces.items():
+            for city in city_list:
+                cities.append((region, province, city))
+    return cities
+
+def get_all_search_targets() -> List[Tuple[str, str, str, str, str]]:
+    """
+    Generates structured targets for total counting and index tracking:
+    For each city, alternates across all 8 sectors (CYCLES_PER_CITY times).
+    """
+    from config import settings
+    cities = get_all_cities()
+    sector_names = list(SECTORS.keys())
+    cycles = max(1, getattr(settings, "CYCLES_PER_CITY", 1))
+
+    targets = []
+    for region, province, city in cities:
+        for _ in range(cycles):
+            for sector in sector_names:
+                targets.append((region, province, city, sector, SECTORS[sector][0]))
     return targets
 
 def generate_search_targets(offset: int = 0) -> Generator[Tuple[str, str, str, str, str], None, None]:
     """
-    Generates an ordered stream of search tasks starting from given offset.
-    Yields tuple: (Region, Province, City, Sector, Keyword)
+    Generates an alternating stream of search tasks starting from given offset.
+    Sequence:
+    For a given city:
+      Sector 1 (random keyword) -> Sector 2 (random keyword) -> ... -> Sector 8 (random keyword)
+    Then advances to the next city.
+    Once all Italian cities are covered, loops back to the start (Milano) picking fresh random keywords!
     """
-    targets = get_all_search_targets()
-    total = len(targets)
-    if total == 0:
+    import random
+    from config import settings
+
+    cities = get_all_cities()
+    sector_names = list(SECTORS.keys())
+    total_cities = len(cities)
+    total_sectors = len(sector_names)
+    cycles = max(1, getattr(settings, "CYCLES_PER_CITY", 1))
+
+    total_steps = total_cities * total_sectors * cycles
+    if total_steps == 0:
         return
-    start = offset % total
-    for i in range(total):
-        yield targets[(start + i) % total]
+
+    start = offset % total_steps
+    for i in range(total_steps):
+        current_step = (start + i) % total_steps
+        
+        # Step layout: each city gets (total_sectors * cycles) consecutive steps
+        steps_per_city = total_sectors * cycles
+        city_idx = (current_step // steps_per_city) % total_cities
+        sector_idx = current_step % total_sectors
+        
+        region, province, city = cities[city_idx]
+        sector = sector_names[sector_idx]
+        
+        # Pick a random keyword from this sector to ensure diverse search discovery
+        available_keywords = SECTORS.get(sector, ["attività"])
+        keyword = random.choice(available_keywords)
+        
+        yield (region, province, city, sector, keyword)

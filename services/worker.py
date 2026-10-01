@@ -63,12 +63,11 @@ def run_lead_generation_task():
         query = f"{keyword} {city} {province} {region} Italia"
         logger.info(f"Executing Places search [{executed_queries}/{settings.MAX_SEARCH_QUERIES_PER_RUN}] for query: '{query}'")
 
-        places = places_service.search_places(query, max_results=10)
+        places = places_service.search_places(query, max_results=20)
 
-        # Prioritize local businesses with <= 200 reviews to target less competitive/higher potential leads
+        # Prioritize businesses with fewer reviews first
         places.sort(key=lambda p: (
-            0 if (p.get("user_rating_count") or 9999) <= 200 else 1,
-            p.get("user_rating_count") or 9999
+            p.get("user_rating_count") if p.get("user_rating_count") is not None else 999999
         ))
 
         for place in places:
@@ -82,6 +81,20 @@ def run_lead_generation_task():
             rating = place.get("rating")
             user_rating_count = place.get("user_rating_count")
             email = ""
+
+            # Target qualification filter 1: Rating must be within [TARGET_MIN_RATING, TARGET_MAX_RATING]
+            if rating is not None:
+                if rating < settings.TARGET_MIN_RATING or rating > settings.TARGET_MAX_RATING:
+                    logger.info(f"Skipping '{business_name}': rating {rating} outside target [{settings.TARGET_MIN_RATING} - {settings.TARGET_MAX_RATING}].")
+                    continue
+            elif not settings.TARGET_INCLUDE_NO_RATING:
+                logger.info(f"Skipping '{business_name}': no rating available.")
+                continue
+
+            # Target qualification filter 2: Review count must be < TARGET_MAX_REVIEWS
+            if user_rating_count is not None and user_rating_count >= settings.TARGET_MAX_REVIEWS:
+                logger.info(f"Skipping '{business_name}': review count {user_rating_count} >= {settings.TARGET_MAX_REVIEWS}.")
+                continue
 
             # OPTIMIZATION LEVEL 1: Direct Gemini Grounding search (DISABLED by default to avoid Vertex AI costs)
             # Re-enable via ENABLE_GEMINI_GROUNDING=True env var only when needed
