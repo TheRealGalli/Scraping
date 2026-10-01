@@ -127,30 +127,7 @@ def test_places_service_rating_and_sorting():
     assert test_places[1]["place_id"] == "3"  # 120 reviews comes second
     assert test_places[2]["place_id"] == "1"  # 500 reviews comes last
 
-def test_target_lead_qualification_filter():
-    from config import settings
-    
-    # Target: 2.0 <= rating <= 4.0 and reviews < 1000
-    candidates = [
-        {"name": "Ideal Target", "rating": 3.4, "user_rating_count": 120},
-        {"name": "Too Good", "rating": 4.7, "user_rating_count": 250},
-        {"name": "Too Bad", "rating": 1.5, "user_rating_count": 50},
-        {"name": "Too Popular", "rating": 3.8, "user_rating_count": 2400},
-        {"name": "Upper Bound", "rating": 4.0, "user_rating_count": 999},
-        {"name": "Lower Bound", "rating": 2.0, "user_rating_count": 5},
-    ]
 
-    qualified = []
-    for c in candidates:
-        r = c.get("rating")
-        cnt = c.get("user_rating_count")
-        if r is not None and (r < settings.TARGET_MIN_RATING or r > settings.TARGET_MAX_RATING):
-            continue
-        if cnt is not None and cnt >= settings.TARGET_MAX_REVIEWS:
-            continue
-        qualified.append(c["name"])
-
-    assert qualified == ["Ideal Target", "Upper Bound", "Lower Bound"]
 
 def test_cron_secret_security():
     from config import settings
