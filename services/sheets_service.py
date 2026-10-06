@@ -153,6 +153,35 @@ class SheetsService:
             logger.error(f"Error appending rows to Google Sheet: {type(e).__name__} - {e}")
             return 0
 
+    def get_existing_sent_emails(self) -> Set[str]:
+        """
+        Reads the worksheet and returns a set of email addresses that have
+        already been sent (Col H / Stato Invio == 'Inviato').
+
+        Used by the email sender to avoid sending duplicate emails to the same
+        address found in different store locations (place IDs).
+        """
+        try:
+            ws = self._get_worksheet()
+            all_values = ws.get_all_values()
+            if not all_values:
+                return set()
+
+            sent_emails: Set[str] = set()
+            # Row 0 is the header; data starts at row index 1
+            for row in all_values[1:]:
+                padded_row = row + [""] * max(0, 9 - len(row))
+                email = padded_row[6].strip().lower()
+                status = padded_row[7].strip()
+                if email and status == "Inviato":
+                    sent_emails.add(email)
+
+            logger.info(f"Loaded {len(sent_emails)} already-sent email addresses from Google Sheet '{self.sheet_name}'.")
+            return sent_emails
+        except Exception as e:
+            logger.error(f"Error fetching sent emails from Google Sheet: {type(e).__name__} - {e}")
+            return set()
+
     def get_pending_leads(self, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Reads worksheet and returns rows where Col G (Email) is present
@@ -194,15 +223,20 @@ class SheetsService:
             logger.error(f"Error fetching pending leads from Google Sheet: {type(e).__name__} - {e}")
             return []
 
-    def update_lead_status(self, row_index: int, success: bool, timestamp_str: str = "") -> bool:
+    def update_lead_status(self, row_index: int, success: bool, timestamp_str: str = "", mark_as: str = "") -> bool:
         """
         Updates Col H (Stato Invio) and Col I (Data Invio) for a given row_index.
-        - success=True -> Col H = "Inviato", Col I = timestamp_str
-        - success=False -> Col H = "Errore Invio"
+        - mark_as (non-empty) -> Col H = mark_as value (e.g. 'Duplicato Email'), Col I unchanged
+        - success=True        -> Col H = "Inviato", Col I = timestamp_str
+        - success=False       -> Col H = "Errore Invio"
         """
         try:
             ws = self._get_worksheet()
-            if success:
+            if mark_as:
+                # Custom status (e.g. 'Duplicato Email') — leave Col I untouched
+                ws.update(range_name=f"H{row_index}", values=[[mark_as]])
+                new_status = mark_as
+            elif success:
                 new_status = "Inviato"
                 # Update range H{row}:I{row}
                 ws.update(range_name=f"H{row_index}:I{row_index}", values=[[new_status, timestamp_str]])

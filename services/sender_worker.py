@@ -39,6 +39,12 @@ def run_email_sender_task():
 
     logger.info(f"Loaded {len(pending_leads)} pending lead(s) for email dispatch (Batch size: {max_emails_this_run}).")
 
+    # 3. Load already-sent email addresses to skip cross-location duplicates.
+    #    If the same email appears in multiple store locations (different Place IDs),
+    #    we only send once and mark the others as 'Duplicato Email'.
+    already_sent_emails = sheets_service.get_existing_sent_emails()
+    logger.info(f"Deduplication guard: {len(already_sent_emails)} email address(es) already sent loaded.")
+
     sent_count = 0
 
     for idx, lead in enumerate(pending_leads):
@@ -52,9 +58,19 @@ def run_email_sender_task():
             break
 
         row_index = lead.get("row_index")
-        to_email = lead.get("email")
+        to_email = lead.get("email", "").strip()
 
         logger.info(f"Processing lead #{idx+1}/{len(pending_leads)}: '{to_email}' (Sheet row {row_index})...")
+
+        # --- Cross-location duplicate guard ---
+        if to_email.lower() in already_sent_emails:
+            logger.info(
+                f"Skipping '{to_email}' (row {row_index}): email already sent to a different store location. "
+                "Marking row as 'Duplicato Email'."
+            )
+            sheets_service.update_lead_status(row_index=row_index, success=False, mark_as="Duplicato Email")
+            continue
+        # --------------------------------------
 
         # Render email content
         subject, html_body, plain_text_body = template_service.render_email(lead)
@@ -76,5 +92,8 @@ def run_email_sender_task():
 
         if success:
             sent_count += 1
+            # Add to in-memory set so subsequent leads in the same batch are also deduplicated
+            already_sent_emails.add(to_email.lower())
 
     logger.info(f"Email Sender worker completed. Sent {sent_count} email(s) in this batch.")
+
