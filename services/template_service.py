@@ -29,7 +29,7 @@ class TemplateService:
         Lead fields used: name, city, sector, website, email.
         Returns tuple: (subject, html_body, plain_text_body)
         """
-        business_name = (lead.get("name") or "").strip() or (lead.get("place_id") or "").strip() or "la tua attività"
+        business_name = (lead.get("name") or "").strip() or "la tua attività"
         city = lead.get("city") or "Italia"
         sector = lead.get("sector") or "commerciale"
         website = lead.get("website") or ""
