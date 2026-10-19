@@ -57,3 +57,46 @@ def test_send_emails_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ["skipped", "completed"]
+
+def test_sender_skips_support_email(monkeypatch):
+    from unittest.mock import MagicMock
+    from services.sender_worker import run_email_sender_task
+
+    mock_sheets = MagicMock()
+    mock_sheets.get_pending_leads.return_value = [
+        {"row_index": 5, "email": "support@example.it", "place_id": "p1", "city": "Roma", "sector": "Ristorazione"}
+    ]
+    mock_sheets.get_existing_sent_emails.return_value = set()
+    
+    mock_smtp = MagicMock()
+    
+    monkeypatch.setattr("services.sender_worker.SheetsService", lambda: mock_sheets)
+    monkeypatch.setattr("services.sender_worker.SMTPService", lambda: mock_smtp)
+    monkeypatch.setattr("services.sender_worker.is_sender_operating_hours", lambda dt=None: True)
+    
+    run_email_sender_task()
+    
+    mock_sheets.update_lead_status.assert_called_once_with(row_index=5, success=False, mark_as="Email Supporto")
+    mock_smtp.send_email.assert_not_called()
+
+def test_sender_skips_duplicate_email(monkeypatch):
+    from unittest.mock import MagicMock
+    from services.sender_worker import run_email_sender_task
+
+    mock_sheets = MagicMock()
+    mock_sheets.get_pending_leads.return_value = [
+        {"row_index": 6, "email": "info@example.it", "place_id": "p2", "city": "Milano", "sector": "Ristorazione"}
+    ]
+    mock_sheets.get_existing_sent_emails.return_value = {"info@example.it"}
+    
+    mock_smtp = MagicMock()
+    
+    monkeypatch.setattr("services.sender_worker.SheetsService", lambda: mock_sheets)
+    monkeypatch.setattr("services.sender_worker.SMTPService", lambda: mock_smtp)
+    monkeypatch.setattr("services.sender_worker.is_sender_operating_hours", lambda dt=None: True)
+    
+    run_email_sender_task()
+    
+    mock_sheets.update_lead_status.assert_called_once_with(row_index=6, success=False, mark_as="Duplicato Email")
+    mock_smtp.send_email.assert_not_called()
+

@@ -5,11 +5,20 @@ from fastapi.testclient import TestClient
 
 from main import app
 from services.time_filter import is_night_time
-from services.email_extractor import EmailExtractor
+from services.email_extractor import EmailExtractor, is_support_email
 from services.geo_matrix import generate_search_targets, ITALY_GEO_TREE, SECTORS
 from services.web_scraper import WebScraper
 
 client = TestClient(app)
+
+def test_is_support_email():
+    assert is_support_email("support@azienda.it") is True
+    assert is_support_email("SUPPORT@AZIENDA.COM") is True
+    assert is_support_email("tech-support@company.org") is True
+    assert is_support_email("info@azienda.it") is False
+    assert is_support_email("contatti@studiolegale.it") is False
+    assert is_support_email("") is False
+    assert is_support_email(None) is False
 
 def test_time_filter_anti_night():
     rome_tz = pytz.timezone("Europe/Rome")
@@ -36,10 +45,16 @@ def test_email_extraction_regex():
     Benvenuti nel nostro studio legale. Per informazioni e prenotazioni potete contattarci
     all'indirizzo info@studiolegale-esempio.it oppure via telefono al 02 1234567.
     Per contatti amministrativi: amministrazione@studiolegale-esempio.it.
-    Ignore bad emails like image.png@2x or fake@example.com.
+    Ignore bad emails like image.png@2x or fake@example.com or support@studiolegale-esempio.it.
     """
     extracted = extractor.extract_email_with_regex(sample_text)
     assert extracted == "info@studiolegale-esempio.it"
+
+def test_email_extraction_regex_only_support_returns_none():
+    extractor = EmailExtractor()
+    sample_text = "Assistenza clienti: support@studiolegale-esempio.it oppure helpdesk-support@domain.com."
+    extracted = extractor.extract_email_with_regex(sample_text)
+    assert extracted is None
 
 def test_gemini_grounding_search_disabled():
     # Test when GROUNDING is disabled
@@ -93,6 +108,15 @@ def test_web_scraper_html_cleaning():
     contact_links = scraper.find_contact_links("https://example.it", raw_html)
     assert len(contact_links) == 1
     assert contact_links[0] == "https://example.it/contatti"
+
+    mailto_html = """
+    <div>
+        <a href="mailto:support@azienda.it">Supporto Clienti</a>
+        <a href="mailto:info@azienda.it?subject=Info">Scrivici</a>
+    </div>
+    """
+    mailto_emails = scraper.extract_mailto_emails(mailto_html)
+    assert mailto_emails == ["info@azienda.it"]
 
 def test_health_check_endpoint():
     response = client.get("/health")

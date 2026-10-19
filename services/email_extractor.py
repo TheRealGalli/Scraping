@@ -14,6 +14,12 @@ INVALID_DOMAINS_OR_EXTS = [
     "bootstrap", "jquery", "wordpress", "gravatar"
 ]
 
+def is_support_email(email: str) -> bool:
+    """Checks if an email is a generic support or helpdesk address containing 'support@'."""
+    if not email:
+        return False
+    return "support@" in email.lower()
+
 class EmailExtractor:
     def __init__(self, project_id: str = None, location: str = None, model_name: str = None):
         self.project_id = project_id or settings.GCP_PROJECT
@@ -72,6 +78,7 @@ class EmailExtractor:
         prompt = (
             f"Usa la ricerca Google per trovare l'indirizzo e-mail di contatto ufficiale dell'attività commerciale '{business_name}' a {city} (sito web: {website}).\n"
             "Restituisci ESCLUSIVAMENTE l'indirizzo e-mail in formato testo semplice (senza spazi, virgolette, spiegazioni o formattazione markdown).\n"
+            "Non considerare indirizzi generici di assistenza o supporto tecnico (es. che contengono 'support@').\n"
             "Se non trovi alcuna e-mail reale e valida, rispondi soltanto 'NONE'."
         )
 
@@ -101,6 +108,7 @@ class EmailExtractor:
         prompt = (
             "Sei un assistente esperto in estrazione dati aziendali.\n"
             "Analizza il seguente testo tratto dal sito web di un'attività commerciale e individua l'indirizzo e-mail di contatto principale.\n"
+            "Ignora indirizzi generici di assistenza tecnica o supporto (es. che contengono 'support@').\n"
             "Restituisci ESCLUSIVAMENTE l'indirizzo e-mail in formato testo semplice (senza spazi, virgolette, spiegazioni o blocchi di codice markdown).\n"
             "Se non è presente alcuna e-mail di contatto reale e valida, rispondi soltanto 'NONE'.\n\n"
             f"TESTO SITO WEB:\n{text[:3000]}"
@@ -121,8 +129,10 @@ class EmailExtractor:
         return None
 
     def _is_valid_email(self, email: str) -> bool:
-        """Filters out non-contact emails, dummy addresses, and static file extensions."""
+        """Filters out non-contact emails, dummy addresses, support emails, and static file extensions."""
         email_lower = email.lower()
+        if is_support_email(email_lower):
+            return False
         if any(ext in email_lower for ext in INVALID_DOMAINS_OR_EXTS):
             return False
         return True

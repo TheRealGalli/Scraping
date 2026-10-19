@@ -9,7 +9,7 @@ from services.geo_matrix import generate_search_targets
 from services.places_service import PlacesService
 from services.custom_search_service import CustomSearchService
 from services.web_scraper import WebScraper
-from services.email_extractor import EmailExtractor
+from services.email_extractor import EmailExtractor, is_support_email
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,10 @@ def run_lead_generation_task():
                         if not email and settings.ENABLE_GEMINI_GROUNDING:
                             logger.info(f"Level 3: Invoking Gemini NLP fallback on scraped HTML text...")
                             email = email_extractor.extract_email_with_gemini(web_text) or ""
+
+            if email and is_support_email(email):
+                logger.info(f"Discarding support email '{email}' for business '{business_name}'.")
+                email = ""
 
             record = {
                 "place_id": place_id,

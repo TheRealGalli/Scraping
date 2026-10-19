@@ -8,6 +8,7 @@ from services.time_filter import is_sender_operating_hours, get_rome_time
 from services.sheets_service import SheetsService
 from services.template_service import TemplateService
 from services.smtp_service import SMTPService
+from services.email_extractor import is_support_email
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,16 @@ def run_email_sender_task():
         to_email = lead.get("email", "").strip()
 
         logger.info(f"Processing lead #{idx+1}/{len(pending_leads)}: '{to_email}' (Sheet row {row_index})...")
+
+        # --- Support email guard ---
+        if is_support_email(to_email):
+            logger.info(
+                f"Skipping '{to_email}' (row {row_index}): support email address ('support@'). "
+                "Marking row as 'Email Supporto'."
+            )
+            sheets_service.update_lead_status(row_index=row_index, success=False, mark_as="Email Supporto")
+            continue
+        # ---------------------------
 
         # --- Cross-location duplicate guard ---
         if to_email.lower() in already_sent_emails:

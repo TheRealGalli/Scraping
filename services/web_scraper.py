@@ -34,9 +34,9 @@ class WebScraper:
             for a_tag in soup.find_all("a", href=True):
                 href = a_tag["href"].strip()
                 if href.lower().startswith("mailto:"):
-                    email_candidate = href[7:].split("?")[0].strip()
-                    if email_candidate and email_candidate not in emails:
-                        emails.append(email_candidate.lower())
+                    email_candidate = href[7:].split("?")[0].strip().lower()
+                    if email_candidate and "support@" not in email_candidate and email_candidate not in emails:
+                        emails.append(email_candidate)
         except Exception as e:
             logger.debug(f"Error parsing mailto links: {e}")
         return emails
