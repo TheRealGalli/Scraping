@@ -174,3 +174,11 @@ def test_configure_backup_failure_does_not_rewrite_sheet(monkeypatch):
     assert adapter.rows("Campagne") == original
     assert store.get(*GLOBAL)["maintenance"] is True
     assert store.get(*GLOBAL)["paused"] is True
+
+
+def test_unchanged_contact_projection_does_not_rewrite_cells():
+    row = ["id", "hello@business.it", "Hospitality", "TRUE", "", "", "", "ref", "sincronizzato", ""]
+    sheet = Sheet("Contatti", [HEADERS["Contatti"], row])
+    adapter = CampaignSheets(Book([sheet]))
+    adapter.update_contacts([row])
+    assert sheet.calls == []

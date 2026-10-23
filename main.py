@@ -1,4 +1,5 @@
 import logging
+import json
 import secrets
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -105,7 +106,10 @@ def trigger_campaign(campaign_id: str, request: Request):
     try:
         from services.campaign_engine import CampaignEngine
         from services.campaign_store import FirestoreStore
-        return CampaignEngine(FirestoreStore()).run(campaign_id, request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+        store = FirestoreStore()
+        result = CampaignEngine(store).run(campaign_id, request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+        logger.info(json.dumps({"event": "sender_db_usage", "usage_estimate": store.usage}))
+        return result
     except Exception:
         logger.exception("Campaign execution failed; no automatic resend of unresolved dispatches")
         return JSONResponse(status_code=503, content={"status": "error", "reason": "campaign_execution_failed"})
@@ -120,7 +124,10 @@ def dispatch_email(request: Request):
     try:
         from services.campaign_engine import CampaignEngine
         from services.campaign_store import FirestoreStore
-        return CampaignEngine(FirestoreStore()).dispatch(request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+        store = FirestoreStore()
+        result = CampaignEngine(store).dispatch(request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+        logger.info(json.dumps({"event": "sender_db_usage", "usage_estimate": store.usage}))
+        return result
     except Exception:
         logger.exception("Dispatcher failed; unresolved sends are not retried automatically")
         return JSONResponse(status_code=503, content={"status": "error", "reason": "campaign_execution_failed"})

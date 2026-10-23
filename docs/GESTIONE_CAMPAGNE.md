@@ -147,3 +147,11 @@ tempo a propagare l'immagine e i destinatari possono avere un'immagine contatto
 salvata localmente. Il file del sito copiato per questo uso è
 `docs/assets/grumit-profilo-lime.jpg`; non è stato cambiato il profilo Google.
 Fonte: https://support.google.com/mail/answer/35529
+
+
+## Aggiornamento costi
+
+La sincronizzazione incrementale mantiene i 15 minuti e non cambia gli interruttori.
+Seguire `OTTIMIZZAZIONE_COSTI.md` per permessi del checkpoint, bootstrap e verifica
+di due cicli prima di riattivare lo Scheduler di sincronizzazione. I backup ora
+sono creati a input modificati o al primo ciclo del giorno, evitando copie identiche.

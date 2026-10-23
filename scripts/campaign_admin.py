@@ -1,6 +1,7 @@
 """Cloud Run Job entry point. Defaults to read-only migration planning."""
 import argparse
 import json
+import hashlib
 import sys
 import uuid
 from pathlib import Path
@@ -123,16 +124,19 @@ def main(argv=None):
         sheets.update_report(store)
         print(json.dumps({"status": "report_updated"}))
         return
-    source = sheets.read_source()
-    existing = store.all("contacts")
-    titles = {s.title for s in sheets.book.worksheets()}
-    overrides = sheets.contact_overrides() if "Contatti" in titles else {}
-    summary, contacts, pairs, events = prepare_import(source, existing, overrides, args.legacy_campaign, now)
-    print(json.dumps({"status": "plan", "summary": summary}, ensure_ascii=False))
-    if args.command == "plan":
-        return
-    if args.command == "sync" and not store.get(*GLOBAL).get("migration_ready"):
-        raise ValueError("Run apply before sync")
+    checkpoint = None
+    if args.command == "sync":
+        if not store.get(*GLOBAL).get("migration_ready"):
+            raise ValueError("Run apply before sync")
+    else:
+        source = sheets.read_source()
+        existing = store.all("contacts")
+        titles = {s.title for s in sheets.book.worksheets()}
+        overrides = sheets.contact_overrides() if "Contatti" in titles else {}
+        summary, contacts, pairs, events = prepare_import(source, existing, overrides, args.legacy_campaign, now)
+        print(json.dumps({"status": "plan", "summary": summary}, ensure_ascii=False))
+        if args.command == "plan":
+            return
     run_id = now.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     token = uuid.uuid4().hex
     def lock(d):
@@ -141,11 +145,27 @@ def main(argv=None):
         return {GATE: dict(d[GATE], token=token, until=now + timedelta(hours=2)), GLOBAL: dict(d[GLOBAL], maintenance=True)}, None
     store.atomic([GATE, GLOBAL], lock)
     try:
-        backup_url = backup(sheets, args.backup_bucket, run_id)
-        # Re-read after exclusion from sender activity; reconcile any final accepted dispatch.
+        if args.command == "sync":
+            from services.campaign_checkpoint import Checkpoint
+            checkpoint = Checkpoint(store, args.backup_bucket)
+            store = checkpoint.load()
+        else:
+            backup_url = backup(sheets, args.backup_bucket, run_id)
+        # Re-read while holding the sender/admin lease.
         sheets.ensure()
         source = sheets.read_source()
-        summary, contacts, pairs, events = prepare_import(source, store.all("contacts"), sheets.contact_overrides(), args.legacy_campaign, utcnow())
+        overrides = sheets.contact_overrides()
+        summary, contacts, pairs, events = prepare_import(source, store.all("contacts"), overrides, args.legacy_campaign, utcnow())
+        from services.campaign_catalog import RULE_VERSION
+        signature = hashlib.sha256(json.dumps([source, overrides, sheets.configs(), sheets.rows("Esclusioni"), sheets.rows("ControlloInvii"), args.legacy_campaign, RULE_VERSION], sort_keys=True).encode()).hexdigest()
+        control = store.get(*GLOBAL)
+        import pytz
+        backup_day = utcnow().astimezone(pytz.timezone(settings.TIMEZONE)).date().isoformat()
+        if (args.command == "sync" and control.get("backup_signature") == signature
+                and control.get("backup_day") == backup_day and control.get("backup")):
+            backup_url = control["backup"]
+        elif args.command == "sync":
+            backup_url = backup(sheets, args.backup_bucket, run_id)
         store.put_many("contacts", contacts)
         previous_pairs = store.all("pairs")
         for pid in pairs:
@@ -183,11 +203,12 @@ def main(argv=None):
             return {dk: daily, mk: mailbox}, None
         store.atomic([dk, mk], seed)
         def ready(d):
-            return {GLOBAL: dict(d[GLOBAL], migration_ready=True, contacts_synced_at=utcnow(), last_import=run_id, backup=backup_url)}, None
+            return {GLOBAL: dict(d[GLOBAL], migration_ready=True, contacts_synced_at=utcnow(), last_import=run_id, backup=backup_url, backup_signature=signature, backup_day=backup_day)}, None
         store.atomic([GLOBAL], ready)
         sheets.update_report(store)
+        usage = checkpoint.save() if checkpoint else dict(store.usage)
         store.atomic([GLOBAL], lambda d: ({GLOBAL: dict(d[GLOBAL], maintenance=False)}, None))
-        print(json.dumps({"status": "applied", "summary": summary, "backup": backup_url, "run_id": run_id}))
+        print(json.dumps({"status": "applied", "summary": summary, "backup": backup_url, "run_id": run_id, "usage_estimate": usage}))
     finally:
         # On any error maintenance remains True; fixing/retrying cannot silently send.
         def unlock(d):

@@ -50,7 +50,8 @@ class CampaignSheets:
         existing = {s.title for s in self.book.worksheets()}
         for title, headers in HEADERS.items():
             if title in existing:
-                actual = self.rows(title)
+                ws = self.book.worksheet(title)
+                actual = [ws.row_values(1)] if hasattr(ws, "row_values") else self.rows(title)[:1]
                 if not actual or actual[0] != headers:
                     raise ValueError("Unexpected headers; refusing to replace " + title)
                 continue
@@ -144,6 +145,7 @@ class CampaignSheets:
         return result
 
     def update_report(self, store):
+        read = store.report_get if callable(getattr(type(store), "report_get", None)) else store.get
         # Reports are system-owned; manual columns in Contatti are preserved by key.
         contacts = store.all("contacts")
         overrides = self.contact_overrides()
@@ -170,14 +172,14 @@ class CampaignSheets:
                 bucket["accepted"] += 1
         self.append_events(history)
         daily = store.all("daily")
-        control = store.get(*GLOBAL)
+        control = read(*GLOBAL)
         summary = [HEADERS["Panoramica"]]
         for date_key, d in sorted(daily.items()):
             mode, day = date_key.split(":", 1)
-            mailbox_total = store.get("mailbox_daily", day).get("total", 0)
+            mailbox_total = read("mailbox_daily", day).get("total", 0)
             for campaign in CATALOG:
                 states = counts.get((day, mode, campaign), {"accepted": 0, "uncertain": 0, "rejected": 0})
-                cfg = store.get("campaigns", campaign)
+                cfg = read("campaigns", campaign)
                 actual_limit = effective_limit(cfg, datetime.strptime(day, "%Y-%m-%d").date()) if cfg else 0
                 summary.append([day, mode, campaign, d.get("campaigns", {}).get(campaign, 0), states["accepted"], states["uncertain"], states["rejected"], cfg.get("daily_limit", 0), actual_limit, settings.GLOBAL_DAILY_LIMIT, mailbox_total, max(0, settings.GLOBAL_DAILY_LIMIT - mailbox_total), str(control.get("contacts_synced_at", "")), str(control.get("paused", True)).upper()])
         self.replace_report("Panoramica", summary)
@@ -193,7 +195,10 @@ class CampaignSheets:
             number = positions.get(row[0])
             if number:
                 # D and H are human-owned; never overwrite even if edited mid-sync.
-                patches.extend([{"range": f"A{number}:C{number}", "values": [row[:3]]}, {"range": f"E{number}:G{number}", "values": [row[4:7]]}, {"range": f"I{number}:J{number}", "values": [row[8:10]]}])
+                previous = rows[number - 1] + [""] * 10
+                for label, start, end in (("A{}:C{}", 0, 3), ("E{}:G{}", 4, 7), ("I{}:J{}", 8, 10)):
+                    if [str(v) for v in previous[start:end]] != [str(v) for v in row[start:end]]:
+                        patches.append({"range": label.format(number, number), "values": [row[start:end]]})
             else:
                 new.append(row)
         ws.resize(rows=max(ws.row_count, len(rows) + len(new)), cols=max(ws.col_count, 12))
@@ -225,6 +230,8 @@ class CampaignSheets:
     def replace_report(self, title, values):
         ws = self.book.worksheet(title)
         # RAW prevents scraped values from becoming spreadsheet formulas.
+        if [[str(v) for v in row] for row in ws.get_all_values()] == [[str(v) for v in row] for row in values]:
+            return
         ws.resize(rows=max(1000, len(values)), cols=max(12, len(values[0])))
         ws.clear()
         for offset in range(0, len(values), 1000):
