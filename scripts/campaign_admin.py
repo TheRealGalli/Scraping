@@ -26,16 +26,80 @@ def backup(sheets, bucket_name, run_id):
     return "gs://" + bucket_name + "/" + blob.name
 
 
+
+def configure150(store, sheets, bucket_name, expand_scraper=False):
+    """Explicit backed-up repair/configuration; source leads are never rewritten."""
+    from services.campaign_sheets import HEADERS
+    from services.campaign_catalog import DEFAULT_LIMITS, SECTOR_RULES, RULE_VERSION
+    from services.geo_matrix import convert_matrix_offset
+    now, token = utcnow(), uuid.uuid4().hex
+    run_id = now.strftime("%Y%m%dT%H%M%SZ") + "-configure-" + token[:8]
+    def acquire(d):
+        if d[GATE].get("until", now) > now:
+            raise ValueError("Another sender/admin operation is active; retry later")
+        return {GATE: dict(d[GATE], token=token, until=now + timedelta(hours=2)),
+                GLOBAL: dict(d[GLOBAL], maintenance=True, paused=True)}, None
+    store.atomic([GATE, GLOBAL], acquire)
+    try:
+        backup_url = backup(sheets, bucket_name, run_id)
+        state_ws, state_values = None, None
+        if expand_scraper:
+            state_ws = sheets.book.worksheet("ConfigState")
+            state_values = state_ws.get_all_values()
+            if len(state_values) < 2 or state_values[1][0] != "matrix_index":
+                raise ValueError("Unexpected ConfigState cursor layout")
+            if len(state_values) >= 3 and any(state_values[2]) and state_values[2][0] != "sector_profile":
+                raise ValueError("ConfigState row 3 already in use")
+            profile = state_values[2][1] if len(state_values) >= 3 and len(state_values[2]) >= 2 else "legacy_v1"
+            if profile not in {"legacy_v1", "expanded_v2"}:
+                raise ValueError("Unknown scraper profile")
+            offset = int(state_values[1][1])
+            if profile == "legacy_v1":
+                offset = convert_matrix_offset(offset, max(1, settings.CYCLES_PER_CITY))
+        # Repair the explicit control tab, including a malformed pasted A1.
+        values = [HEADERS["Campagne"]] + [[c, "TRUE", q, q, "", str(q), 720] for c, q in DEFAULT_LIMITS.items()]
+        ws = sheets.book.worksheet("Campagne")
+        ws.clear()
+        ws.update(range_name="A1:G7", values=values, value_input_option="RAW")
+        sheets.ensure()
+        sheets.book.worksheet("ControlloInvii").update(range_name="A2", values=[["TRUE"]], value_input_option="RAW")
+        rules = [HEADERS["RegoleSettori"]] + [[c, sector, RULE_VERSION] for c in CATALOG for sector in SECTOR_RULES[c]]
+        ws = sheets.book.worksheet("RegoleSettori")
+        ws.clear()
+        ws.update(range_name="A1", values=rules, value_input_option="RAW")
+        if expand_scraper:
+            state_ws.update(range_name="A2:C3", values=[
+                ["matrix_index", str(offset), now.isoformat()],
+                ["sector_profile", "expanded_v2", now.isoformat()]
+            ], value_input_option="RAW")
+        sheets.refresh_controls(store, utcnow())
+        sheets.update_report(store)
+        store.atomic([GLOBAL], lambda d: ({GLOBAL: dict(d[GLOBAL], maintenance=False, paused=True)}, None))
+        print(json.dumps({"status": "configured", "quota_total": sum(DEFAULT_LIMITS.values()),
+                          "paused": True, "backup": backup_url,
+                          "scraper_profile": "expanded_v2" if expand_scraper else "unchanged"}))
+    finally:
+        def unlock(d):
+            if d[GATE].get("token") != token:
+                return {}, None
+            return {GATE: dict(d[GATE], until=utcnow())}, None
+        store.atomic([GATE], unlock)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve"])
+    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150"])
     parser.add_argument("--legacy-campaign", choices=["unknown", "nfc"], default="unknown")
     parser.add_argument("--backup-bucket", default="")
+    parser.add_argument("--expand-scraper", action="store_true", help="Only while the scraper Scheduler is paused")
     parser.add_argument("--dispatch-id", default="")
     parser.add_argument("--outcome", choices=["accepted", "not_sent"])
     parser.add_argument("--evidence", default="")
     args = parser.parse_args(argv)
     store, sheets, now = FirestoreStore(), CampaignSheets(), utcnow()
+    if args.command == "configure150":
+        configure150(store, sheets, args.backup_bucket, args.expand_scraper)
+        return
     if args.command == "pause":
         store.atomic([GLOBAL], lambda d: ({GLOBAL: dict(d[GLOBAL], maintenance=True)}, None))
         print(json.dumps({"status": "maintenance_enabled", "note": "Wait for in-flight dispatches to settle before editing"}))

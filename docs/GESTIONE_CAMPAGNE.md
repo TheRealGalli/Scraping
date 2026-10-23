@@ -107,3 +107,43 @@ il blocco o reinviare alla cieca. La guida tecnica descrive il comando resolve.
 
 Gli invii test già fatti non consumano lo storico campagne reale, ma consumano
 il budget della casella di oggi. Non azzerare i contatori per fare spazio.
+
+
+## Profilo 150 e riparazione automatica dello Sheet
+
+Il comando amministrativo `configure150 --expand-scraper --backup-bucket BUCKET`
+salva prima un backup completo, ripara Campagne anche se il testo è finito tutto
+in A1 e applica quote finali=iniziali 25/20/30/25/25/25, senza rampa.
+Aggiorna RegoleSettori e mantiene Pausa globale=TRUE. Non riscrive Italy o lo
+storico contatti/invii. Con --expand-scraper aggiorna esclusivamente il cursore
+in ConfigState e aggiunge il marcatore sector_profile=expanded_v2.
+
+Sequenza obbligatoria: SENDING_ENABLED=False; scraper PAUSED; mettere in pausa
+campaign-registry-sync; attendere la fine delle esecuzioni precedenti. Poi usare
+la nuova immagine sul job, impostare gli argomenti configure150, eseguire UNA volta
+e verificare status=configured. Ripristinare subito gli argomenti sync con
+--legacy-campaign nfc e lo stesso backup bucket, eseguire sync e solo dopo
+riattivare campaign-registry-sync. Non lasciare configure150 su un job ricorrente.
+La quota globale del servizio deve essere 150: il comando non modifica Cloud Run.
+Il vecchio esempio di rampa sopra resta un'opzione alternativa; configure150
+applica la partenza diretta con i massimi concordati, senza abilitare il live.
+
+La conversione conserva la città, il ciclo e il settore successivo del vecchio
+indice. È idempotente: una seconda esecuzione non converte di nuovo l'indice.
+Le città già superate visiteranno i nuovi settori al successivo giro geografico,
+non si azzera la raccolta. Il numero di query per esecuzione e gli Scheduler dello
+scraper non vengono aumentati. Con più settori il giro completo richiede più tempo.
+I nuovi contatti entrano nel registro al successivo sync, con le medesime regole
+di esclusione, revisione, cooldown e quote degli altri contatti.
+
+## Foto del mittente
+
+Il nome visualizzato SMTP e la foto del profilo sono due impostazioni separate.
+La foto non si imposta con gli header SMTP né con l'HTML. Accedere all'account
+Google carlo@csd-station.it, aprire myaccount.google.com/personal-info e impostare
+la foto; se disponibile, verificare la visibilità a Tutti. L'amministratore
+Workspace può dover consentire prima la modifica della foto. Google può impiegare
+tempo a propagare l'immagine e i destinatari possono avere un'immagine contatto
+salvata localmente. Il file del sito copiato per questo uso è
+`docs/assets/grumit-profilo-lime.jpg`; non è stato cambiato il profilo Google.
+Fonte: https://support.google.com/mail/answer/35529

@@ -42,7 +42,8 @@ def run_lead_generation_task():
     start_offset = sheets_service.get_matrix_index()
 
     from services.geo_matrix import get_all_search_targets
-    total_targets = len(get_all_search_targets())
+    sector_profile = sheets_service.get_matrix_profile()
+    total_targets = len(get_all_search_targets(profile=sector_profile))
 
     new_records: List[Dict[str, Any]] = []
     processed_count = 0
@@ -51,7 +52,7 @@ def run_lead_generation_task():
     logger.info(f"Starting matrix search from Google Sheets stored index {start_offset}/{total_targets}.")
 
     # 3. Stream search targets from matrix starting at stored offset
-    for region, province, city, sector, keyword in generate_search_targets(offset=start_offset):
+    for region, province, city, sector, keyword in generate_search_targets(offset=start_offset, profile=sector_profile):
         if executed_queries >= settings.MAX_SEARCH_QUERIES_PER_RUN:
             logger.info(f"Reached MAX_SEARCH_QUERIES_PER_RUN limit ({settings.MAX_SEARCH_QUERIES_PER_RUN}). Stopping API calls for this run.")
             break

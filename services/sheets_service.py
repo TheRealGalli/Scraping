@@ -297,3 +297,17 @@ class SheetsService:
         except Exception as e:
             logger.error(f"Error updating matrix_index in ConfigState sheet: {e}")
             return False
+
+
+    def get_matrix_profile(self) -> str:
+        # Fail closed on access errors: do not reinterpret an expanded cursor.
+        book = self._get_client().open_by_key(self.spreadsheet_id)
+        state = book.worksheet("ConfigState").get_all_values()
+        if len(state) < 3 or not any(state[2]):
+            return "legacy_v1"
+        if state[2][0] != "sector_profile":
+            raise ValueError("ConfigState row 3 already in use; inspect before migration")
+        profile = state[2][1] if len(state[2]) > 1 else ""
+        from services.geo_matrix import sector_names_for_profile
+        sector_names_for_profile(profile)
+        return profile

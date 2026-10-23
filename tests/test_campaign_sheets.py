@@ -123,3 +123,54 @@ def test_report_reconciles_rome_day_effective_quota_and_shared_budget():
     assert row[3:6] == [1, 1, 0]
     assert row[7:12] == [50, 5, 150, 2, 148]
     assert len(adapter.book.worksheet("Invii").values) == 2
+
+
+def test_configure150_repairs_paste_and_converts_cursor_once(monkeypatch):
+    from scripts.campaign_admin import configure150
+    from test_campaigns import MemoryStore
+    sheets = [Sheet(name, [HEADERS[name]]) for name in HEADERS]
+    sheets.extend([
+        Sheet("Italy", [["original"], ["keep-me"]]),
+        Sheet("ConfigState", [["Key", "Value", "Last Updated"], ["matrix_index", "9", "old"]])
+    ])
+    book = Book(sheets)
+    book.worksheet("Campagne").values = [["all pasted text in A1"]]
+    book.worksheet("ControlloInvii").values.append(["FALSE"])
+    adapter = CampaignSheets(book)
+    monkeypatch.setattr(adapter, "ensure", lambda: None)
+    monkeypatch.setattr(adapter, "update_report", lambda store: None)
+    backups = []
+    def backup(*args):
+        backups.append(deepcopy(book.worksheet("Campagne").values))
+        return "gs://test/backup"
+    monkeypatch.setattr("scripts.campaign_admin.backup", backup)
+    store = MemoryStore()
+    configure150(store, adapter, "test", True)
+    rows = adapter.rows("Campagne")
+    assert rows[0] == HEADERS["Campagne"]
+    assert sum(int(row[2]) for row in rows[1:]) == 150
+    assert all(int(row[2]) == int(row[3]) == int(row[5]) for row in rows[1:])
+    assert adapter.rows("ConfigState")[1][1] == "12"
+    assert adapter.rows("ConfigState")[2][1] == "expanded_v2"
+    configure150(store, adapter, "test", True)
+    assert adapter.rows("ConfigState")[1][1] == "12"
+    assert adapter.rows("Italy") == [["original"], ["keep-me"]]
+    assert store.get(*GLOBAL)["paused"] is True
+    assert backups[0] == [["all pasted text in A1"]]
+    assert any(row[1] == "Agenzie Immobiliari" for row in adapter.rows("RegoleSettori")[1:])
+
+
+def test_configure_backup_failure_does_not_rewrite_sheet(monkeypatch):
+    from scripts.campaign_admin import configure150
+    from test_campaigns import MemoryStore
+    original = [["broken original"]]
+    adapter = CampaignSheets(Book([Sheet("Campagne", original)]))
+    def fail(*args):
+        raise RuntimeError("backup failed")
+    monkeypatch.setattr("scripts.campaign_admin.backup", fail)
+    store = MemoryStore()
+    with pytest.raises(RuntimeError):
+        configure150(store, adapter, "test")
+    assert adapter.rows("Campagne") == original
+    assert store.get(*GLOBAL)["maintenance"] is True
+    assert store.get(*GLOBAL)["paused"] is True

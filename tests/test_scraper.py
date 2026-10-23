@@ -176,3 +176,29 @@ def test_cron_secret_security():
     # Reset
     settings.CRON_SECRET = ""
 
+
+
+@pytest.mark.parametrize("cycles", [1, 2, 3])
+@pytest.mark.parametrize("offset", [0, 7, 8, 9, 15, 16, 31, 117])
+def test_expanded_cursor_preserves_next_city_and_sector(monkeypatch, cycles, offset):
+    from config import settings
+    from services.geo_matrix import convert_matrix_offset
+    monkeypatch.setattr(settings, "CYCLES_PER_CITY", cycles)
+    before = next(generate_search_targets(offset, "legacy_v1"))
+    after = next(generate_search_targets(convert_matrix_offset(offset, cycles), "expanded_v2"))
+    assert before[:4] == after[:4]
+
+
+def test_new_sectors_have_keywords_and_explicit_targeting():
+    from services.campaign_catalog import SECTOR_RULES, DEFAULT_LIMITS
+    from services.geo_matrix import sector_names_for_profile
+    assert len(sector_names_for_profile("legacy_v1")) == 8
+    assert len(sector_names_for_profile("expanded_v2")) == 11
+    assert sum(DEFAULT_LIMITS.values()) == 150
+    for sector in ("Agenzie Immobiliari", "Architettura e Interior Design", "Eventi e Wedding"):
+        assert len(SECTORS[sector]) >= 5
+        assert sector in SECTOR_RULES["social"]
+        assert sector in SECTOR_RULES["media"]
+        assert sector not in SECTOR_RULES["nfc"]
+    with pytest.raises(ValueError):
+        sector_names_for_profile("unknown")

@@ -13,8 +13,15 @@ SECTOR_RULES = {
     "social": ["Ristorazione", "Centri e Servizi", "Hospitality", "Boutique e Retail", "Fitness e Sport", "Veterinaria e Pet Care"],
     "media": ["Studi Professionali", "Hospitality", "Boutique e Retail"],
 }
-DEFAULT_LIMITS = dict(consulenza=40, training=35, nfc=50, sito=45, social=45, media=40)
-RULE_VERSION = "2026-10-23-v1"
+DEFAULT_LIMITS = dict(consulenza=25, training=20, nfc=30, sito=25, social=25, media=25)
+# Explicit commercial fit; new sectors never enter every campaign automatically.
+for campaign in ("consulenza", "training", "sito", "social", "media"):
+    SECTOR_RULES[campaign].append("Agenzie Immobiliari")
+for campaign in ("consulenza", "training", "sito", "social", "media"):
+    SECTOR_RULES[campaign].append("Architettura e Interior Design")
+for campaign in ("sito", "social", "media"):
+    SECTOR_RULES[campaign].append("Eventi e Wedding")
+RULE_VERSION = "2026-10-23-v2"
 
 
 def template_version(campaign):

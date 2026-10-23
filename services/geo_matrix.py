@@ -44,6 +44,45 @@ SECTORS: Dict[str, List[str]] = {
     ]
 }
 
+# Keep the original order stable for cursors created before expansion.
+LEGACY_SECTOR_NAMES = tuple(SECTORS)
+SECTORS.update({
+    "Agenzie Immobiliari": [
+        "agenzia immobiliare", "agenzia compravendita immobiliare",
+        "agenzia affitti immobiliari", "agenzia immobili commerciali",
+        "agenzia immobiliare di lusso", "agenzia gestione immobili"
+    ],
+    "Architettura e Interior Design": [
+        "studio architettura", "studio interior design", "architetto progettazione interni",
+        "studio progettazione arredamento", "studio home staging"
+    ],
+    "Eventi e Wedding": [
+        "organizzazione eventi", "wedding planner", "location matrimoni",
+        "agenzia eventi aziendali", "allestimenti eventi", "servizio catering eventi"
+    ],
+})
+SECTORS["Hospitality"].extend(["resort", "residence turistico", "boutique hotel"])
+SECTORS["Studi Professionali"].extend(["studio consulente del lavoro", "studio consulenza aziendale"])
+SECTORS["Boutique e Retail"].extend(["showroom arredamento", "negozio illuminazione", "negozio cucine"])
+
+
+def sector_names_for_profile(profile="legacy_v1"):
+    if profile == "legacy_v1":
+        return list(LEGACY_SECTOR_NAMES)
+    if profile == "expanded_v2":
+        return list(SECTORS)
+    raise ValueError("Unknown scraper sector profile")
+
+
+def convert_matrix_offset(offset, cycles=1):
+    """Map the next legacy city/cycle/sector to the expanded layout, once."""
+    if offset < 0 or cycles < 1:
+        raise ValueError("Invalid scraper cursor")
+    old_count, new_count = len(LEGACY_SECTOR_NAMES), len(SECTORS)
+    city, within = divmod(offset, old_count * cycles)
+    cycle, sector = divmod(within, old_count)
+    return city * new_count * cycles + cycle * new_count + sector
+
 ITALY_GEO_TREE: Dict[str, Dict[str, List[str]]] = {
     "Lombardia": {
         "Milano": ["Milano", "Milano Navigli", "Milano Brera", "Milano Isola", "Milano Porta Romana", "Milano Baggio", "Sesto San Giovanni", "Cinisello Balsamo", "Legnano", "Rho"],
@@ -199,14 +238,14 @@ def get_all_cities() -> List[Tuple[str, str, str]]:
                 cities.append((region, province, city))
     return cities
 
-def get_all_search_targets() -> List[Tuple[str, str, str, str, str]]:
+def get_all_search_targets(profile="legacy_v1") -> List[Tuple[str, str, str, str, str]]:
     """
     Generates structured targets for total counting and index tracking:
     For each city, alternates across all 8 sectors (CYCLES_PER_CITY times).
     """
     from config import settings
     cities = get_all_cities()
-    sector_names = list(SECTORS.keys())
+    sector_names = sector_names_for_profile(profile)
     cycles = max(1, getattr(settings, "CYCLES_PER_CITY", 1))
 
     targets = []
@@ -216,7 +255,7 @@ def get_all_search_targets() -> List[Tuple[str, str, str, str, str]]:
                 targets.append((region, province, city, sector, SECTORS[sector][0]))
     return targets
 
-def generate_search_targets(offset: int = 0) -> Generator[Tuple[str, str, str, str, str], None, None]:
+def generate_search_targets(offset: int = 0, profile="legacy_v1") -> Generator[Tuple[str, str, str, str, str], None, None]:
     """
     Generates an alternating stream of search tasks starting from given offset.
     Sequence:
@@ -229,7 +268,7 @@ def generate_search_targets(offset: int = 0) -> Generator[Tuple[str, str, str, s
     from config import settings
 
     cities = get_all_cities()
-    sector_names = list(SECTORS.keys())
+    sector_names = sector_names_for_profile(profile)
     total_cities = len(cities)
     total_sectors = len(sector_names)
     cycles = max(1, getattr(settings, "CYCLES_PER_CITY", 1))
