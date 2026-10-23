@@ -121,5 +121,5 @@ def test_report_reconciles_rome_day_effective_quota_and_shared_budget():
     adapter.update_report(store)
     row = next(row for row in adapter.book.worksheet("Panoramica").values[1:] if row[2] == "nfc")
     assert row[3:6] == [1, 1, 0]
-    assert row[7:12] == [50, 5, 50, 2, 48]
+    assert row[7:12] == [50, 5, 150, 2, 148]
     assert len(adapter.book.worksheet("Invii").values) == 2

@@ -51,6 +51,7 @@ def setup(monkeypatch):
     monkeypatch.setattr(settings, "SENDER_MODE", "live")
     monkeypatch.setattr(settings, "GLOBAL_DAILY_LIMIT", 50)
     monkeypatch.setattr(settings, "GLOBAL_INTERVAL_SECONDS", 120)
+    monkeypatch.setattr(settings, "GLOBAL_INTERVAL_MAX_SECONDS", 120)
     monkeypatch.setattr(settings, "WORKSPACE_EMAIL", "carlo@owned.it")
     monkeypatch.setattr(CampaignSheets, "refresh_controls", lambda *args: None)
     store = MemoryStore()
@@ -93,7 +94,7 @@ def test_cooldown_does_not_slide_and_window_boundary():
     assert next_contact_time(history, NOW + timedelta(days=90), 30, 90, 2) == NOW + timedelta(days=90)
 
 
-@pytest.mark.parametrize("iso,allowed", [("2026-11-02T07:29:00+00:00", False), ("2026-11-02T07:30:00+00:00", True), ("2026-11-02T17:30:00+00:00", False), ("2026-11-07T10:00:00+00:00", False), ("2026-07-06T06:30:00+00:00", True)])
+@pytest.mark.parametrize("iso,allowed", [("2026-11-02T07:29:00+00:00", False), ("2026-11-02T08:00:00+00:00", True), ("2026-11-02T17:30:00+00:00", False), ("2026-11-07T10:00:00+00:00", False), ("2026-07-06T07:00:00+00:00", True)])
 def test_business_hours(iso, allowed):
     assert is_sender_operating_hours(datetime.fromisoformat(iso)) == allowed
 
@@ -312,3 +313,73 @@ def test_campaign_route_fails_closed_without_secret(monkeypatch):
     assert TestClient(app).post("/send-emails/nfc").status_code == 401
     assert TestClient(app).post("/send-emails/unknown").status_code == 404
     assert TestClient(app).post("/send-emails").json()["reason"] == "legacy_sender_retired"
+
+
+@pytest.mark.parametrize("pause", [120, 240])
+def test_dispatch_persists_variable_pause_across_restarts(setup, monkeypatch, pause):
+    store, transport = setup
+    add(store, "first@business.it", "consulenza")
+    add(store, "second@business.it", "training")
+    monkeypatch.setattr(settings, "GLOBAL_INTERVAL_MAX_SECONDS", 240)
+    monkeypatch.setattr("services.campaign_engine.random.randint", lambda low, high: pause)
+    result = CampaignEngine(store, transport, lambda: NOW).dispatch()
+    assert result["status"] == "accepted"
+    assert result["pause_seconds"] == pause
+    assert store.get("mailbox_daily", "2026-11-02")["next_at"] == NOW + timedelta(seconds=pause)
+    result = CampaignEngine(store, transport, lambda: NOW + timedelta(seconds=pause - 1)).dispatch()
+    assert result["reason"] == "global_interval"
+    assert transport.send.call_count == 1
+
+
+def test_dispatch_concurrent_ticks_cannot_burst(setup):
+    store, transport = setup
+    for i, campaign in enumerate(CATALOG):
+        add(store, "business%d@business.it" % i, campaign)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda _: CampaignEngine(store, transport, lambda: NOW).dispatch(), range(6)))
+    assert sum(r["status"] == "accepted" for r in results) == 1
+    assert transport.send.call_count == 1
+
+
+def test_dispatch_skips_disabled_campaign_and_never_catches_up(setup):
+    store, transport = setup
+    add(store, campaign="training")
+    store.data[("campaigns", "consulenza")]["enabled"] = False
+    result = CampaignEngine(store, transport, lambda: NOW).dispatch()
+    assert result["status"] == "accepted"
+    later = NOW + timedelta(hours=1)
+    store.data[GLOBAL]["contacts_synced_at"] = later
+    add(store, "other@business.it", "nfc")
+    before = transport.send.call_count
+    CampaignEngine(store, transport, lambda: later).dispatch()
+    assert transport.send.call_count <= before + 1
+
+
+def test_dispatch_respects_shared_legacy_budget(setup):
+    store, transport = setup
+    add(store)
+    store.data[("mailbox_daily", "2026-11-02")] = {"total": 50, "legacy_count": 49}
+    assert CampaignEngine(store, transport, lambda: NOW).dispatch()["reason"] == "global_daily_limit"
+    transport.send.assert_not_called()
+
+
+def test_pause_starts_after_slow_transport_finishes(setup):
+    store, transport = setup
+    add(store, campaign="consulenza")
+    clock = [NOW]
+    def send(*args):
+        clock[0] += timedelta(seconds=45)
+        return TransportResult("accepted", "slow")
+    transport.send.side_effect = send
+    CampaignEngine(store, transport, lambda: clock[0]).dispatch()
+    assert store.get("mailbox_daily", "2026-11-02")["next_at"] == NOW + timedelta(seconds=165)
+
+
+def test_dispatch_endpoint_requires_secret_and_stays_disabled(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+    monkeypatch.setattr(settings, "SENDER_CRON_SECRET", "test-secret")
+    monkeypatch.setattr(settings, "SENDING_ENABLED", False)
+    client = TestClient(app)
+    assert client.post("/dispatch-emails").status_code == 401
+    assert client.post("/dispatch-emails", headers={"X-Sender-Secret": "test-secret"}).json()["reason"] == "sending_disabled"

@@ -35,14 +35,15 @@ class Settings(BaseSettings):
     TEST_RECIPIENTS: str = ""  # Comma-separated owned addresses; only used in test mode
     FIRESTORE_DATABASE: str = "(default)"
     CAMPAIGN_NAMESPACE: str = "campaign_sender_v1"
-    GLOBAL_DAILY_LIMIT: int = 50
+    GLOBAL_DAILY_LIMIT: int = 150
     GLOBAL_INTERVAL_SECONDS: int = 120
+    GLOBAL_INTERVAL_MAX_SECONDS: int = 240
     CONTACT_COOLDOWN_DAYS: int = 30
     CONTACT_WINDOW_DAYS: int = 90
     CONTACT_WINDOW_MAX_SENDS: int = 2
     CAMPAIGN_LEASE_SECONDS: int = 120
-    SENDER_START_TIME: str = "08:30"
-    SENDER_END_TIME: str = "18:30"
+    SENDER_START_TIME: str = "09:00"
+    SENDER_END_TIME: str = "18:00"
     CAMPAIGN_SHEET_MAX_AGE_MINUTES: int = 30
 
     # API Security & Protection

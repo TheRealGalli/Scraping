@@ -109,3 +109,18 @@ def trigger_campaign(campaign_id: str, request: Request):
     except Exception:
         logger.exception("Campaign execution failed; no automatic resend of unresolved dispatches")
         return JSONResponse(status_code=503, content={"status": "error", "reason": "campaign_execution_failed"})
+
+
+@app.post("/dispatch-emails", tags=["Sender"])
+def dispatch_email(request: Request):
+    if not settings.SENDER_CRON_SECRET or not secrets.compare_digest(request.headers.get("X-Sender-Secret", ""), settings.SENDER_CRON_SECRET):
+        return JSONResponse(status_code=401, content={"status": "error", "reason": "sender_secret_required"})
+    if not settings.SENDING_ENABLED:
+        return {"status": "skipped", "reason": "sending_disabled"}
+    try:
+        from services.campaign_engine import CampaignEngine
+        from services.campaign_store import FirestoreStore
+        return CampaignEngine(FirestoreStore()).dispatch(request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+    except Exception:
+        logger.exception("Dispatcher failed; unresolved sends are not retried automatically")
+        return JSONResponse(status_code=503, content={"status": "error", "reason": "campaign_execution_failed"})

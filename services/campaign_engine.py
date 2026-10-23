@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -79,6 +80,42 @@ class CampaignEngine:
             return {GATE: dict(gate, until=self.clock())}, None
         self.store.atomic([GATE], release)
 
+    def dispatch(self, execution_id=""):
+        """One tick sends at most one message; missed ticks never accumulate."""
+        now = self.clock()
+        if not settings.SENDING_ENABLED:
+            return {"status": "skipped", "reason": "sending_disabled"}
+        if not is_sender_operating_hours(now):
+            return {"status": "skipped", "reason": "outside_operating_hours"}
+        import pytz
+        day = now.astimezone(pytz.timezone(settings.TIMEZONE)).date()
+        mailbox = self.store.get("mailbox_daily", day.isoformat())
+        if mailbox.get("total", 0) >= settings.GLOBAL_DAILY_LIMIT:
+            return {"status": "skipped", "reason": "global_daily_limit"}
+        if mailbox.get("next_at", now) > now:
+            return {"status": "skipped", "reason": "global_interval"}
+        mode = "live" if settings.SENDER_MODE == "live" else "test"
+        daily = self.store.get("daily", mode + ":" + day.isoformat())
+        cursor = self.store.get(*GATE).get("cursor_" + mode, 0)
+        campaigns = list(CATALOG)
+        def priority(c):
+            cfg = self.store.get("campaigns", c)
+            return (daily.get("campaigns", {}).get(c, 0) / max(1, effective_limit(cfg, day)) if cfg else 1,
+                    (campaigns.index(c) - cursor) % len(campaigns))
+        ordered = sorted(campaigns, key=priority)
+        results = {}
+        for campaign in ordered:
+            result = self.run(campaign, execution_id)
+            if result["status"] != "skipped":
+                return result
+            reason = result["reason"]
+            if reason in {"global_daily_limit", "global_interval", "another_dispatch_in_progress",
+                          "not_ready_or_paused", "contact_sync_required", "outside_operating_hours",
+                          "sending_disabled", "lease_lost", "paused"}:
+                return result
+            results[campaign] = reason
+        return {"status": "skipped", "reason": "no_campaign_available", "details": results}
+
     def run(self, campaign, execution_id=""):
         if campaign not in CATALOG:
             raise ValueError("Unknown campaign")
@@ -96,6 +133,8 @@ class CampaignEngine:
             self.transport = CampaignSMTP()  # Validate configuration before reserving anything.
         if settings.SENDER_MODE == "test" and not any(x.strip() for x in settings.TEST_RECIPIENTS.split(",")):
             raise ValueError("TEST_RECIPIENTS required in test mode")
+        if not settings.GLOBAL_INTERVAL_SECONDS <= settings.GLOBAL_INTERVAL_MAX_SECONDS <= 3600:
+            raise ValueError("Invalid global interval range")
         token = uuid.uuid4().hex
         if not self._acquire(token, now):
             return {"status": "skipped", "reason": "another_dispatch_in_progress"}
@@ -156,8 +195,8 @@ class CampaignEngine:
                     self._finish(result, "uncertain", "", type(exc).__name__)
                     raise
                 self._finish(result, outcome.status, outcome.message_id, outcome.error)
-                logger.info(json.dumps({"event": "campaign_dispatch", "campaign": campaign, "contact_id": result["contact_id"], "dispatch_id": result["dispatch_id"], "status": outcome.status, "mode": settings.SENDER_MODE}))
-                return {"status": outcome.status, "dispatch_id": result["dispatch_id"], "campaign": campaign}
+                logger.info(json.dumps({"event": "campaign_dispatch", "campaign": campaign, "contact_id": result["contact_id"], "dispatch_id": result["dispatch_id"], "status": outcome.status, "mode": settings.SENDER_MODE, "pause_seconds": result["pause_seconds"]}))
+                return {"status": outcome.status, "dispatch_id": result["dispatch_id"], "campaign": campaign, "pause_seconds": result["pause_seconds"]}
             reasons[result["reason"]] = reasons.get(result["reason"], 0) + 1
             if result["reason"] in {"global_daily_limit", "global_interval", "campaign_daily_limit", "campaign_interval", "fair_turn", "lease_lost", "paused"}:
                 return result
@@ -187,6 +226,8 @@ class CampaignEngine:
         suppression = ("suppressions", cid)
         attempt_key = ("dispatches", uuid.uuid4().hex)
         keys = list(dict.fromkeys([GLOBAL, GATE, daily_key, mailbox_key, contact_key, pair_doc, suppression] + config_keys() + [("pairs", pair_key(c, cid)) for c in CATALOG]))
+
+        pause_seconds = random.randint(settings.GLOBAL_INTERVAL_SECONDS, settings.GLOBAL_INTERVAL_MAX_SECONDS)
 
         def reserve(d):
             gate, control, contact, pair = d[GATE], d[GLOBAL], d[contact_key], d[pair_doc]
@@ -278,9 +319,9 @@ class CampaignEngine:
             daily["next_campaign_at"] = dict(daily.get("next_campaign_at", {}))
             daily["total"] += 1
             daily["campaigns"][campaign] = daily["campaigns"].get(campaign, 0) + 1
-            daily["next_at"] = now + timedelta(seconds=settings.GLOBAL_INTERVAL_SECONDS)
+            daily["next_at"] = now + timedelta(seconds=pause_seconds)
             daily["next_campaign_at"][campaign] = now + timedelta(seconds=configs[campaign]["interval_seconds"])
-            attempt = {"dispatch_id": attempt_key[1], "contact_id": cid, "campaign": campaign, "email": contact["email"], "mode": mode, "pair_id": pid, "state": "reserved", "at": now, "execution_id": execution_id, "template_version": template_version(campaign), "sender": settings.WORKSPACE_EMAIL, "lease_token": token}
+            attempt = {"dispatch_id": attempt_key[1], "contact_id": cid, "campaign": campaign, "email": contact["email"], "mode": mode, "pair_id": pid, "state": "reserved", "at": now, "execution_id": execution_id, "template_version": template_version(campaign), "sender": settings.WORKSPACE_EMAIL, "lease_token": token, "pause_seconds": pause_seconds}
             contact = dict(contact, **{active_field: attempt_key[1]})
             mailbox = dict(mailbox, total=mailbox.get("total", 0) + 1, next_at=daily["next_at"])
             return {GATE: gate, daily_key: daily, mailbox_key: mailbox, contact_key: contact, attempt_key: attempt}, dict(attempt, status="reserved")
@@ -306,6 +347,9 @@ class CampaignEngine:
         pk = ("pairs", attempt["pair_id"])
         sk = ("suppressions", attempt["contact_id"])
         now = self.clock()
+        import pytz
+        day = attempt["at"].astimezone(pytz.timezone(settings.TIMEZONE)).date().isoformat()
+        mailbox_key = ("mailbox_daily", day)
         def finish(d):
             if d[ak].get("state") not in {"reserved", "started", "uncertain"}:
                 return {}, None
@@ -329,5 +373,9 @@ class CampaignEngine:
                 updates[pk] = dict(d[pk], state="excluded", reason="hard_bounce")
                 updates[sk] = dict(d[sk], blocked=True, reason="hard_bounce", registered_at=now)
             updates[ck] = contact
+            if "pause_seconds" in attempt:
+                mailbox = dict(d[mailbox_key])
+                mailbox["next_at"] = max(mailbox.get("next_at", now), now + timedelta(seconds=attempt["pause_seconds"]))
+                updates[mailbox_key] = mailbox
             return updates, None
-        self.store.atomic([ck, ak, pk, sk], finish)
+        self.store.atomic([ck, ak, pk, sk, mailbox_key], finish)

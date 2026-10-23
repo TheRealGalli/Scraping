@@ -4,6 +4,8 @@ La raccolta `/worker` mantiene il collegamento esistente a Google Sheets.
 Il nuovo invio offre sei campagne con targeting per settore, registro Firestore,
 quote condivise, pause per destinatario ed esclusioni manuali su Sheets.
 
+Gestione quotidiana e coordinatore unico: [guida breve](docs/GESTIONE_CAMPAGNE.md).
+
 **Prima di distribuire:** leggere [la guida GCP](docs/GUIDA_GCP_SEI_CAMPAGNE.md).
 Il vecchio endpoint `/send-emails` viene disattivato dal nuovo codice. Le nuove
 campagne iniziano con invio spento; richiedono migrazione e collaudo espliciti.

@@ -1,5 +1,9 @@
 # Guida GCP: attivazione delle sei campagne
 
+> Aggiornamento: per il nuovo coordinatore unico, 150 email/giorno e gestione
+> quotidiana seguire `GESTIONE_CAMPAGNE.md`. La precedente proposta dei sei
+> Scheduler di invio è superata: NON crearli insieme al coordinatore unico.
+
 Questa guida accompagna il codice del nuovo motore. Nessun account GCP o foglio
 live è stato modificato durante lo sviluppo. Il collegamento Sheets esistente si
 riutilizza. Non inviare password, chiavi o esportazioni dei contatti in chat.
@@ -32,8 +36,8 @@ Metti in pausa SOLO quelli d'invio prima della migrazione; non eliminare lo
 Scheduler dello scraper. Il codice nuovo impedirà comunque l'invio dalla route vecchia.
 
 Controlla che il trigger di build pubblichi l'immagine corretta e che i test GitHub
-siano verdi. Non è stato eseguito un push da questa sessione: la distribuzione
-avverrà solo quando le modifiche saranno pubblicate nel repository collegato.
+siano verdi. Le modifiche sono pubblicate sul repository collegato. Verifica sempre il commit
+effettivamente distribuito prima di aggiornare il job amministrativo.
 
 ## 2. Abilitare servizi, database e backup
 
