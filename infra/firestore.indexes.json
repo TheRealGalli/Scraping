@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "campaign_sender_v1_pairs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "campaign", "order": "ASCENDING"},
+        {"fieldPath": "state", "order": "ASCENDING"},
+        {"fieldPath": "eligible_at", "order": "ASCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

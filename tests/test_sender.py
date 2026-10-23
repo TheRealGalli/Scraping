@@ -16,9 +16,9 @@ def test_sender_operating_hours():
     day_dt = rome_tz.localize(datetime.datetime(2026, 8, 17, 10, 30))
     assert is_sender_operating_hours(day_dt) is True
 
-    # 07:00 AM should be in operating hours
+    # The new sender starts at 08:30, independently of the scraper window.
     morning_dt = rome_tz.localize(datetime.datetime(2026, 8, 17, 7, 0))
-    assert is_sender_operating_hours(morning_dt) is True
+    assert is_sender_operating_hours(morning_dt) is False
 
     # 23:00 PM should NOT be in operating hours
     night_dt = rome_tz.localize(datetime.datetime(2026, 8, 17, 23, 0))

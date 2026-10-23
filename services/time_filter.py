@@ -24,14 +24,16 @@ def is_night_time(dt: datetime = None) -> bool:
 
 def is_sender_operating_hours(dt: datetime = None) -> bool:
     """
-    Checks if current time (Europe/Rome) falls within daytime email sending window (06:00 to 22:00).
+    Checks weekday sender window; scraper hours are configured separately.
     Returns True if sending is allowed.
     """
     if dt is None:
         dt = get_rome_time()
     
-    hour = dt.hour
-    # Daytime window: 06:00 to 21:59 (6 <= hour < 22)
-    if settings.NIGHT_END_HOUR <= hour < settings.NIGHT_START_HOUR:
-        return True
-    return False
+    dt = dt.astimezone(pytz.timezone(settings.TIMEZONE))
+    def minutes(value):
+        hour, minute = map(int, value.split(":"))
+        if not 0 <= hour <= 23 or not 0 <= minute <= 59:
+            raise ValueError("Invalid sender time")
+        return hour * 60 + minute
+    return dt.weekday() < 5 and minutes(settings.SENDER_START_TIME) <= dt.hour * 60 + dt.minute < minutes(settings.SENDER_END_TIME)

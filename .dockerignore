@@ -9,3 +9,9 @@ __pycache__/
 venv/
 tests/
 .pytest_cache/
+templates/campaigns/screenshots/
+scripts/capture_campaign_previews.mjs
+scripts/build_campaign_previews.py
+service_account.json
+credentials.json
+sa_key.json

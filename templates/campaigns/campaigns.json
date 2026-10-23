@@ -1,0 +1,68 @@
+[
+  {
+    "id": "consulenza",
+    "name": "Consulenza AI",
+    "tag": "MENO LAVORO RIPETITIVO",
+    "subject": "Un’idea per alleggerire il lavoro ripetitivo",
+    "preheader": "Partiamo da un’attività concreta, non da un altro software.",
+    "image": "consulenza.jpg",
+    "alt": "Otto fra documenti e un grande tasto copia e incolla, dal carosello CSD Station",
+    "cta": "Scopri la consulenza",
+    "path": "/"
+  },
+  {
+    "id": "training",
+    "name": "Training AI",
+    "tag": "IMPARARE FACENDO",
+    "subject": "Un training AI costruito sul lavoro del tuo team",
+    "preheader": "Esercizi concreti, strumenti e verifica delle risposte.",
+    "image": "training.jpg",
+    "alt": "Otto accanto a un punto interrogativo, dal carosello sul training AI",
+    "cta": "Scopri il training",
+    "path": "/training-ai/"
+  },
+  {
+    "id": "nfc",
+    "name": "Card NFC",
+    "tag": "UN TAP. LA TUA SCHEDA.",
+    "subject": "Card, plate o stand: un tap per aprire la tua scheda Google",
+    "preheader": "NFC e QR code per rendere più semplice il percorso verso le recensioni.",
+    "image": "nfc.jpg",
+    "alt": "Otto presenta card, plate adesiva e stand NFC CSD Station",
+    "cta": "Guarda i tre formati",
+    "path": "/card-nfc/"
+  },
+  {
+    "id": "sito",
+    "name": "Sito web",
+    "tag": "LA TUA VETRINA ONLINE",
+    "subject": "Un sito chiaro per chi cerca la tua attività",
+    "preheader": "Servizi, informazioni e contatto: tutto al posto giusto.",
+    "image": "sito.jpg",
+    "alt": "Otto presenta un sito web su computer e smartphone",
+    "cta": "Scopri i siti",
+    "path": "/sito-social/#siti"
+  },
+  {
+    "id": "social",
+    "name": "Social",
+    "tag": "LA TUA ATTIVITÀ, RACCONTATA BENE",
+    "subject": "Caroselli e reel da approvare e pubblicare",
+    "preheader": "Un piano condiviso, contenuti curati e approvazione semplice.",
+    "image": "social.jpg",
+    "alt": "Otto organizza una serie di contenuti social nei colori avorio e lime",
+    "cta": "Scopri i contenuti social",
+    "path": "/sito-social/#social"
+  },
+  {
+    "id": "media",
+    "name": "Slide e video",
+    "tag": "DA UN’IDEA A QUALCOSA DA MOSTRARE",
+    "subject": "Slide e video per spiegare meglio quello che fai",
+    "preheader": "Presentazioni, animazioni e montaggio a partire dai tuoi materiali.",
+    "image": "media.jpg",
+    "alt": "Otto lavora con slide, un ciak e un simbolo di riproduzione video",
+    "cta": "Guarda slide e video",
+    "path": "/video-slide/"
+  }
+]

@@ -1,11 +1,11 @@
 import logging
+import secrets
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from config import settings
 from services.time_filter import is_night_time, is_sender_operating_hours, get_rome_time
 from services.worker import run_lead_generation_task
-from services.sender_worker import run_email_sender_task
 
 # Configure logging
 logging.basicConfig(
@@ -88,43 +88,24 @@ def trigger_worker(request: Request):
 
 @app.api_route("/send-emails", methods=["GET", "POST"], tags=["Sender"])
 def trigger_email_sender(request: Request):
-    """
-    Cloud Scheduler Invocation Endpoint (/send-emails).
-    
-    1. Validates CRON_SECRET header (X-Cron-Secret) or query parameter if CRON_SECRET is set.
-    2. Checks Italy (Europe/Rome) daytime operating hours (06:00 - 22:00).
-    3. If outside window, returns 200 OK immediately without SMTP calls.
-    4. Otherwise, executes email sender task synchronously so Cloud Run keeps CPU active until finished.
-    """
-    if _is_unauthorized(request):
-        logger.warning("[/send-emails] Unauthorized request: Invalid or missing X-Cron-Secret.")
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={"status": "error", "message": "Unauthorized: Invalid or missing CRON_SECRET"}
-        )
+    """Legacy route intentionally cannot send, including after a Scheduler retry."""
+    # Retire the legacy sender: old Scheduler retries must never bypass the registry.
+    return {"status": "skipped", "reason": "legacy_sender_retired", "message": "Use POST /send-emails/{campaign_id} after migration"}
 
-    now_rome = get_rome_time()
-    formatted_time = now_rome.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-    if not is_sender_operating_hours(now_rome):
-        logger.info(f"[/send-emails] Outside operating hours at {formatted_time}. Skipping execution.")
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "status": "skipped",
-                "reason": "Outside sender operating hours (06:00-22:00 Europe/Rome)",
-                "timestamp": formatted_time
-            }
-        )
-
-    logger.info(f"[/send-emails] Daytime sender triggered at {formatted_time}. Running email sender task...")
-    run_email_sender_task()
-
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            "status": "completed",
-            "message": "Email sender worker task executed successfully",
-            "timestamp": formatted_time
-        }
-    )
+@app.post("/send-emails/{campaign_id}", tags=["Sender"])
+def trigger_campaign(campaign_id: str, request: Request):
+    from services.campaign_catalog import CATALOG
+    if campaign_id not in CATALOG:
+        return JSONResponse(status_code=404, content={"status": "error", "reason": "unknown_campaign"})
+    if not settings.SENDER_CRON_SECRET or not secrets.compare_digest(request.headers.get("X-Sender-Secret", ""), settings.SENDER_CRON_SECRET):
+        return JSONResponse(status_code=401, content={"status": "error", "reason": "sender_secret_required"})
+    if not settings.SENDING_ENABLED:
+        return {"status": "skipped", "reason": "sending_disabled"}
+    try:
+        from services.campaign_engine import CampaignEngine
+        from services.campaign_store import FirestoreStore
+        return CampaignEngine(FirestoreStore()).run(campaign_id, request.headers.get("X-CloudScheduler-ScheduleTime", ""))
+    except Exception:
+        logger.exception("Campaign execution failed; no automatic resend of unresolved dispatches")
+        return JSONResponse(status_code=503, content={"status": "error", "reason": "campaign_execution_failed"})

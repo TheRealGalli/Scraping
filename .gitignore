@@ -7,3 +7,6 @@ __pycache__/
 .env
 .pytest_cache/
 .DS_Store
+service_account.json
+credentials.json
+sa_key.json

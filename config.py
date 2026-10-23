@@ -28,6 +28,23 @@ class Settings(BaseSettings):
     MAX_DAILY_EMAILS: int = 50
     EMAILS_PER_BATCH: int = 1            # Send 1 email per Cloud Scheduler invocation
 
+    # Campaign sender: deliberately off on first deployment.
+    SENDING_ENABLED: bool = False
+    SENDER_MODE: str = "dry_run"  # dry_run, test, live
+    SENDER_CRON_SECRET: str = ""  # Required header on campaign endpoints, including with OIDC
+    TEST_RECIPIENTS: str = ""  # Comma-separated owned addresses; only used in test mode
+    FIRESTORE_DATABASE: str = "(default)"
+    CAMPAIGN_NAMESPACE: str = "campaign_sender_v1"
+    GLOBAL_DAILY_LIMIT: int = 50
+    GLOBAL_INTERVAL_SECONDS: int = 120
+    CONTACT_COOLDOWN_DAYS: int = 30
+    CONTACT_WINDOW_DAYS: int = 90
+    CONTACT_WINDOW_MAX_SENDS: int = 2
+    CAMPAIGN_LEASE_SECONDS: int = 120
+    SENDER_START_TIME: str = "08:30"
+    SENDER_END_TIME: str = "18:30"
+    CAMPAIGN_SHEET_MAX_AGE_MINUTES: int = 30
+
     # API Security & Protection
     CRON_SECRET: str = ""                # Optional secret token to protect /worker and /send-emails endpoints
 
