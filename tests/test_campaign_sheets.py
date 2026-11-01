@@ -182,3 +182,33 @@ def test_unchanged_contact_projection_does_not_rewrite_cells():
     adapter = CampaignSheets(Book([sheet]))
     adapter.update_contacts([row])
     assert sheet.calls == []
+
+
+
+def test_focus150_keeps_only_nfc_and_media_and_preserves_sent_history(monkeypatch):
+    from scripts.campaign_admin import configure150
+    from test_campaigns import MemoryStore
+    sheets = [Sheet(name, [HEADERS[name]]) for name in HEADERS]
+    sheets.extend([Sheet("Italy", [["original"]]),
+                   Sheet("ConfigState", [["Key", "Value", "Last Updated"], ["matrix_index", "12", "old"], ["sector_profile", "expanded_v2", "old"]])])
+    book = Book(sheets)
+    book.worksheet("ControlloInvii").values.append(["FALSE"])
+    adapter, store = CampaignSheets(book), MemoryStore()
+    store.data[("contacts", "existing")] = {"sent": ["nfc", "media"], "history": ["existing history"]}
+    monkeypatch.setattr(adapter, "ensure", lambda: None)
+    monkeypatch.setattr(adapter, "update_report", lambda store: None)
+    monkeypatch.setattr("scripts.campaign_admin.backup", lambda *args: "gs://test/backup")
+    configure150(store, adapter, "test", True, focus=True)
+    configs = adapter.configs()
+    assert {c for c, cfg in configs.items() if cfg["enabled"]} == {"nfc", "media"}
+    assert sum(cfg["daily_limit"] for cfg in configs.values()) == 150
+    for cid in ("nfc", "media"):
+        assert configs[cid]["daily_limit"] == configs[cid]["initial_limit"] == 75
+        assert configs[cid]["interval_seconds"] == 240
+    assert not configs["forecasting"]["enabled"]
+    assert store.get("contacts", "existing")["sent"] == ["nfc", "media"]
+    assert adapter.rows("ConfigState")[1][1] == "14"
+    assert adapter.rows("ConfigState")[2][1] == "expanded_v3"
+    configure150(store, adapter, "test", True, focus=True)
+    assert adapter.rows("ConfigState")[1][1] == "14"
+    assert store.get(*GLOBAL)["paused"] is True

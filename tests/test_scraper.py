@@ -202,3 +202,19 @@ def test_new_sectors_have_keywords_and_explicit_targeting():
         assert sector not in SECTOR_RULES["nfc"]
     with pytest.raises(ValueError):
         sector_names_for_profile("unknown")
+
+
+
+@pytest.mark.parametrize("source", ["legacy_v1", "expanded_v2", "expanded_v3"])
+@pytest.mark.parametrize("cycles", [1, 2])
+@pytest.mark.parametrize("offset", [0, 7, 8, 10, 11, 12, 22, 135])
+def test_v3_scraper_cursor_preserves_next_task(source, cycles, offset, monkeypatch):
+    from services.geo_matrix import convert_matrix_offset, sector_names_for_profile
+    from config import settings
+    monkeypatch.setattr(settings, "CYCLES_PER_CITY", cycles)
+    before = next(generate_search_targets(offset, source))
+    converted = convert_matrix_offset(offset, cycles, source, "expanded_v3")
+    after = next(generate_search_targets(converted, "expanded_v3"))
+    assert before[:4] == after[:4]
+    assert len(sector_names_for_profile("expanded_v3")) == 13
+    assert converted == convert_matrix_offset(converted, cycles, "expanded_v3", "expanded_v3")

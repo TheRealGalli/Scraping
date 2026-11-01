@@ -48,3 +48,11 @@ Il progetto GCP già collegato a Sheets non deve essere ricollegato solo perché
 aggiungiamo campagne. Conservare identità di servizio e ID del foglio, verificando
 i permessi già esistenti. Il registro condiviso e gli Scheduler saranno descritti
 nella guida di implementazione; queste pagine non li attivano.
+
+
+## Aggiornamento 1 novembre 2026
+
+La campagna media mantiene il proprio ID e usa ora media-v2.jpg. Forecasting è
+preparata separatamente ma inizialmente inattiva. Profilo operativo proposto:
+75 NFC + 75 media, totale 150. I template e la galleria non attivano campagne.
+Applicazione controllata: docs/PROFILO_NFC_VIDEO_FORECASTING.md.

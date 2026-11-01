@@ -59,7 +59,7 @@ class CampaignSheets:
             ws.update(range_name="A1", values=[headers], value_input_option="RAW")
             ws.freeze(rows=1)
             if title == "Campagne":
-                ws.append_rows([[c, "FALSE", DEFAULT_LIMITS[c], 5, "", "5", max(720, 36000 // DEFAULT_LIMITS[c])] for c in CATALOG], value_input_option="RAW")
+                ws.append_rows([[c, "FALSE", DEFAULT_LIMITS[c], min(5, DEFAULT_LIMITS[c]), "", str(min(5, DEFAULT_LIMITS[c])), max(720, 36000 // DEFAULT_LIMITS[c])] for c in CATALOG], value_input_option="RAW")
             elif title == "ControlloInvii":
                 ws.append_row(["TRUE"], value_input_option="RAW")
             elif title == "RegoleSettori":

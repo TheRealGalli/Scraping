@@ -383,3 +383,50 @@ def test_dispatch_endpoint_requires_secret_and_stays_disabled(monkeypatch):
     client = TestClient(app)
     assert client.post("/dispatch-emails").status_code == 401
     assert client.post("/dispatch-emails", headers={"X-Sender-Secret": "test-secret"}).json()["reason"] == "sending_disabled"
+
+
+
+def test_previous_six_campaign_config_disables_optional_forecasting(setup):
+    from services.campaign_engine import validate_config
+    store, transport = setup
+    existing = {cid: cfg for cid, cfg in store.all("campaigns").items() if cid != "forecasting"}
+    normalized = validate_config(existing)
+    assert normalized["forecasting"]["enabled"] is False
+    assert normalized["forecasting"]["daily_limit"] == 0
+    assert all(normalized[cid] == cfg for cid, cfg in existing.items())
+    del existing["nfc"]
+    with pytest.raises(ValueError):
+        validate_config(existing)
+
+
+def test_new_media_targets_restaurants_jewelers_and_dental_centers():
+    from services.campaign_catalog import SECTOR_RULES
+    for sector in ["Ristorazione", "Gioiellerie", "Studi Dentistici", "Studi Professionali", "Boutique e Retail"]:
+        assert sector in SECTOR_RULES["media"]
+
+
+def test_catalog_templates_and_cid_assets_are_present():
+    from services.campaign_catalog import render, template_version
+    for cid in CATALOG:
+        subject, html, plain, asset = render(cid)
+        assert asset.is_file()
+        assert "cid:campaign_art" in html
+        assert "assets/" not in html
+        assert "CANCELLAMI" in html and "CANCELLAMI" in plain
+        assert len(template_version(cid)) == 16
+        assert subject
+    subject, html, plain, asset = render("forecasting")
+    assert "https://csd-station.it/forecasting/" in html
+    assert "7 giorni" in plain
+    assert "senza allegare" in plain
+
+
+
+def test_forecasting_cannot_send_before_optional_sheet_row_exists(setup):
+    store, transport = setup
+    store.data.pop(("campaigns", "forecasting"))
+    add(store, campaign="forecasting")
+    result = CampaignEngine(store, transport, lambda: NOW).run("forecasting")
+    assert result["reason"] == "campaign_disabled"
+    transport.send.assert_not_called()
+    assert not store.all("daily")

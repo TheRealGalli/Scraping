@@ -66,19 +66,29 @@ SECTORS["Studi Professionali"].extend(["studio consulente del lavoro", "studio c
 SECTORS["Boutique e Retail"].extend(["showroom arredamento", "negozio illuminazione", "negozio cucine"])
 
 
+# Freeze v2 before extending the taxonomy; old cursors must keep their meaning.
+EXPANDED_V2_SECTOR_NAMES = tuple(SECTORS)
+SECTORS.update({
+    "Gioiellerie": ["gioielleria", "oreficeria", "gioielleria artigianale", "gioielleria orologeria", "laboratorio orafo", "gioielleria anelli di fidanzamento"],
+    "Studi Dentistici": ["studio dentistico", "clinica dentale", "centro odontoiatrico", "studio odontoiatria", "studio ortodonzia", "dentista"]
+})
+
 def sector_names_for_profile(profile="legacy_v1"):
     if profile == "legacy_v1":
         return list(LEGACY_SECTOR_NAMES)
     if profile == "expanded_v2":
+        return list(EXPANDED_V2_SECTOR_NAMES)
+    if profile == "expanded_v3":
         return list(SECTORS)
     raise ValueError("Unknown scraper sector profile")
 
 
-def convert_matrix_offset(offset, cycles=1):
+def convert_matrix_offset(offset, cycles=1, source_profile="legacy_v1", target_profile="expanded_v2"):
     """Map the next legacy city/cycle/sector to the expanded layout, once."""
     if offset < 0 or cycles < 1:
         raise ValueError("Invalid scraper cursor")
-    old_count, new_count = len(LEGACY_SECTOR_NAMES), len(SECTORS)
+    old_count = len(sector_names_for_profile(source_profile))
+    new_count = len(sector_names_for_profile(target_profile))
     city, within = divmod(offset, old_count * cycles)
     cycle, sector = divmod(within, old_count)
     return city * new_count * cycles + cycle * new_count + sector

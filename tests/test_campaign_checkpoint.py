@@ -210,10 +210,10 @@ def test_sync_twice_does_not_rewrite_unchanged_contacts_pairs_or_backups(monkeyp
     assert not [key for collection, key in real.writes if collection in {"contacts", "pairs", "dispatches"}]
     assert len(backups) == 1
     assert real.get(*GLOBAL)["maintenance"] is False
-    # A new scraper row imports only its contact and six relevant pairs.
+    # A new scraper row imports only its contact and only its relevant pairs.
     source.append(["new", "", "", "", "Hospitality", "", "new@owned.it", "Da inviare", "", "", ""])
     real.writes.clear()
     admin.main(args)
     imported = [(collection, key) for collection, key in real.writes if collection in {"contacts", "pairs", "dispatches"}]
-    assert len(imported) == 7
+    assert len(imported) == 1 + len(pairs) // 100
     assert len(backups) == 2

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from config import settings
-from services.campaign_catalog import CATALOG, SECTOR_RULES, template_version
+from services.campaign_catalog import CATALOG, SECTOR_RULES, template_version, OPTIONAL_CAMPAIGNS, disabled_config
 from services.recipient_policy import exclusion_reason, next_contact_time, normalize_email
 from services.time_filter import is_sender_operating_hours
 
@@ -37,8 +37,12 @@ def effective_limit(config, day):
 
 
 def validate_config(config):
-    if set(config) != set(CATALOG):
-        raise ValueError("Six known campaigns required")
+    if set(config) - set(CATALOG) or set(CATALOG) - set(config) - OPTIONAL_CAMPAIGNS:
+        raise ValueError("All required known campaigns must be configured")
+    config = dict(config)
+    for cid in OPTIONAL_CAMPAIGNS:
+        if not config.get(cid):
+            config[cid] = disabled_config()
     for cid, c in config.items():
         if not isinstance(c.get("enabled"), bool):
             raise ValueError("Invalid campaign state: " + cid)

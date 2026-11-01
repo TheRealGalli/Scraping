@@ -1,5 +1,7 @@
 # Scraper e campagne CSD Station
 
+Profilo attuale NFC + Video & Slide e forecasting preparato: [guida aggiornamento](docs/PROFILO_NFC_VIDEO_FORECASTING.md).
+
 La raccolta `/worker` mantiene il collegamento esistente a Google Sheets.
 Il nuovo invio offre sei campagne con targeting per settore, registro Firestore,
 quote condivise, pause per destinatario ed esclusioni manuali su Sheets.

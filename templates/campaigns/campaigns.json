@@ -56,13 +56,24 @@
   },
   {
     "id": "media",
-    "name": "Slide e video",
-    "tag": "DA UN’IDEA A QUALCOSA DA MOSTRARE",
-    "subject": "Slide e video per spiegare meglio quello che fai",
-    "preheader": "Presentazioni, animazioni e montaggio a partire dai tuoi materiali.",
-    "image": "media.jpg",
-    "alt": "Otto lavora con slide, un ciak e un simbolo di riproduzione video",
-    "cta": "Guarda slide e video",
+    "name": "Video & Slide",
+    "tag": "DAI TUOI MATERIALI, UNA STORIA",
+    "subject": "Dalle tue foto a un video o una presentazione",
+    "preheader": "Prodotti, menu e servizi: una storia visiva da mostrare ai clienti.",
+    "image": "media-v2.jpg",
+    "alt": "Otto presenta slide di un gioiello, un piatto e un ambiente, con un ciak",
+    "cta": "Guarda video e slide",
     "path": "/video-slide/"
+  },
+  {
+    "id": "forecasting",
+    "name": "AI Forecasting",
+    "tag": "LO STORICO DIVENTA UNA DOMANDA",
+    "subject": "Acquisti e scorte: cosa possono dirti i tuoi dati?",
+    "preheader": "Una prova gratuita di 7 giorni, dopo la verifica dello storico.",
+    "image": "forecasting.jpg",
+    "alt": "Otto presenta uno storico, una previsione con fascia di incertezza e scatole di magazzino",
+    "cta": "Scopri la prova di forecasting",
+    "path": "/forecasting/"
   }
 ]

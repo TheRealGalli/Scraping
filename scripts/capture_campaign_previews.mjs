@@ -7,7 +7,8 @@ const output = path.join(root, 'templates/campaigns/screenshots');
 await fs.mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 760, height: 1000 }, deviceScaleFactor: 1 });
-const ids = ['consulenza', 'training', 'nfc', 'sito', 'social', 'media'];
+const manifest = JSON.parse(await fs.readFile(path.join(root, 'templates/campaigns/campaigns.json'), 'utf8'));
+const ids = manifest.map(c => c.id);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -29,7 +30,7 @@ await page.goto('http://127.0.0.1:8765/templates/campaigns/index.html');
 await page.frameLocator('iframe').locator('img').evaluateAll(images => Promise.all(images.map(img => img.decode())));
 for (const id of ids) {
   await page.locator(`[data-id="${id}"]`).click();
-  await page.waitForFunction(id => document.getElementById('email').contentDocument?.title.includes(({consulenza:'Consulenza AI',training:'Training AI',nfc:'Card NFC',sito:'Sito web',social:'Social',media:'Slide e video'})[id]), id);
+  await page.waitForFunction(({ id, name }) => document.getElementById('email').contentDocument?.title.includes(name), { id, name: manifest.find(c => c.id === id).name });
 }
 await page.locator('[data-id="consulenza"]').click();
 await page.frameLocator('iframe').locator('img').evaluateAll(images => Promise.all(images.map(img => img.decode())));
@@ -40,4 +41,4 @@ await page.waitForTimeout(300);
 if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) errors.push('gallery mobile overflow');
 await browser.close();
 if (errors.length) throw new Error(errors.join('\n'));
-console.log('Six desktop and mobile previews verified; gallery navigation verified.');
+console.log('Campaign desktop and mobile previews verified; gallery navigation verified.');
