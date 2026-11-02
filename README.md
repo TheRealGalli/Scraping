@@ -8,6 +8,9 @@ quote condivise, pause per destinatario ed esclusioni manuali su Sheets.
 
 Gestione quotidiana e coordinatore unico: [guida breve](docs/GESTIONE_CAMPAGNE.md).
 
+Priorità ai nuovi contatti in target e distribuzione geografica:
+[regole e attivazione dopo il deploy Git](docs/SELEZIONE_CONTATTI.md).
+
 Analisi e rilascio dei risparmi: [ottimizzazione costi](docs/OTTIMIZZAZIONE_COSTI.md).
 
 **Prima di distribuire:** leggere [la guida GCP](docs/GUIDA_GCP_SEI_CAMPAGNE.md).

@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     SENDER_START_TIME: str = "09:00"
     SENDER_END_TIME: str = "18:00"
     CAMPAIGN_SHEET_MAX_AGE_MINUTES: int = 30
+    SMART_SELECTION_ENABLED: bool = False  # Enable after the new sync has built its shortlists.
 
     # API Security & Protection
     CRON_SECRET: str = ""                # Optional secret token to protect /worker and /send-emails endpoints

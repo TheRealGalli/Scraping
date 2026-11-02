@@ -174,7 +174,13 @@ class CampaignSheets:
         daily = store.all("daily")
         control = read(*GLOBAL)
         summary = [HEADERS["Panoramica"]]
-        for date_key, d in sorted(daily.items()):
+        # Latest live day first; test history stays below all live days.
+        ordered_days = sorted(
+            daily.items(),
+            key=lambda item: (item[0].startswith("live:"), item[0].split(":", 1)[1]),
+            reverse=True,
+        )
+        for date_key, d in ordered_days:
             mode, day = date_key.split(":", 1)
             mailbox_total = read("mailbox_daily", day).get("total", 0)
             for campaign in CATALOG:

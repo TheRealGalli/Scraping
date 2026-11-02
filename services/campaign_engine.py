@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from config import settings
 from services.campaign_catalog import CATALOG, SECTOR_RULES, template_version, OPTIONAL_CAMPAIGNS, disabled_config
 from services.recipient_policy import exclusion_reason, next_contact_time, normalize_email
+from services.campaign_selection import VERSION as SELECTION_VERSION, geography, ordered_entries, previously_contacted
 from services.time_filter import is_sender_operating_hours
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ class CampaignEngine:
             reason = result["reason"]
             if reason in {"global_daily_limit", "global_interval", "another_dispatch_in_progress",
                           "not_ready_or_paused", "contact_sync_required", "outside_operating_hours",
-                          "sending_disabled", "lease_lost", "paused"}:
+                          "sending_disabled", "lease_lost", "paused", "selection_sync_required"}:
                 return result
             results[campaign] = reason
         return {"status": "skipped", "reason": "no_campaign_available", "details": results}
@@ -168,10 +169,14 @@ class CampaignEngine:
         configs = validate_config({c: self.store.get("campaigns", c) for c in CATALOG})
         if not configs[campaign]["enabled"]:
             return {"status": "skipped", "reason": "campaign_disabled"}
-        # Bounded pages: deferred records are moved out of the due index, not discarded.
+        candidates, first_contact_only, selection_error = self._candidates(campaign, configs, now)
+        if selection_error:
+            return {"status": "skipped", "reason": selection_error}
+        # Deferred records remain in the queue; each reservation rechecks live data.
         reasons = {}
-        for pid, pair in self.store.due(campaign, now):
-            result = self._reserve(campaign, pid, pair["contact_id"], token, execution_id)
+        for pid, pair in candidates:
+            result = self._reserve(campaign, pid, pair["contact_id"], token, execution_id,
+                                   first_contact_only=first_contact_only)
             if result["status"] == "reserved":
                 if settings.SENDER_MODE == "dry_run":
                     self._finish(result, "preview", "", "")
@@ -216,7 +221,43 @@ class CampaignEngine:
         self.store.atomic([GATE], idle)
         return {"status": "skipped", "reason": "no_eligible_candidates", "details": reasons}
 
-    def _reserve(self, campaign, pid, cid, token, execution_id):
+    def _candidates(self, campaign, configs, now):
+        if not settings.SMART_SELECTION_ENABLED:
+            return self.store.due(campaign, now), False, None
+        import pytz
+        mode = "live" if settings.SENDER_MODE == "live" else "test"
+        day = now.astimezone(pytz.timezone(settings.TIMEZONE)).date()
+        daily = self.store.get("daily", mode + ":" + day.isoformat())
+        queues = {}
+        for cid, cfg in configs.items():
+            if not cfg["enabled"] or daily.get("campaigns", {}).get(cid, 0) >= effective_limit(cfg, day):
+                continue
+            queue = self.store.get("selection_queues", cid)
+            generated = queue.get("generated_at")
+            if (queue.get("version") != SELECTION_VERSION or not isinstance(generated, datetime)
+                    or generated.tzinfo is None or generated > now + timedelta(minutes=1)
+                    or now - generated > timedelta(minutes=settings.CAMPAIGN_SHEET_MAX_AGE_MINUTES)
+                    or mode not in queue.get("modes", {})):
+                return (), False, "selection_sync_required"
+            queues[cid] = queue
+        # Prefer real first contacts across ALL campaigns that still have budget.
+        # A stale positive hint waits for sync rather than falling back prematurely.
+        first_only = any(q["modes"][mode]["first_contact_total"] for q in queues.values())
+        if campaign not in queues:
+            return (), first_only, None
+        stats = self.store.get(*GATE).get("selection_" + mode, {})
+        if stats.get("day") != day.isoformat():
+            stats = {}
+        entries = ordered_entries(queues[campaign], mode, stats, first_only)
+        return self._shortlisted_pairs(entries, now), first_only, None
+
+    def _shortlisted_pairs(self, entries, now):
+        for entry in entries:
+            pair = self.store.get("pairs", entry["pair_id"])
+            if pair.get("state") == "queued" and pair.get("eligible_at", now) <= now:
+                yield entry["pair_id"], pair
+
+    def _reserve(self, campaign, pid, cid, token, execution_id, first_contact_only=False):
         now = self.clock()
         import pytz
         day = now.astimezone(pytz.timezone(settings.TIMEZONE)).date()
@@ -255,6 +296,8 @@ class CampaignEngine:
                 return skip("candidate_no_longer_due")
             if d[suppression].get("blocked") or campaign in d[suppression].get("campaigns", []):
                 return skip("suppressed", state="suppressed")
+            if first_contact_only and previously_contacted(contact):
+                return skip("previously_contacted")
             reason = exclusion_reason(contact.get("email"))
             if reason:
                 return skip(reason, state="excluded")
@@ -318,6 +361,15 @@ class CampaignEngine:
             if winner != campaign:
                 return {GATE: gate}, {"status": "skipped", "reason": "fair_turn"}
             gate["cursor_" + mode] = (order_global.index(campaign) + 1) % len(order_global)
+            if settings.SMART_SELECTION_ENABLED:
+                stats = gate.get("selection_" + mode, {})
+                if stats.get("day") != day.isoformat():
+                    stats = {"day": day.isoformat()}
+                province, city = geography(contact)
+                provinces, cities = dict(stats.get("provinces", {})), dict(stats.get("cities", {}))
+                provinces[province] = provinces.get(province, 0) + 1
+                cities[city] = cities.get(city, 0) + 1
+                gate["selection_" + mode] = dict(stats, provinces=provinces, cities=cities, last_city=city)
             daily = dict(daily)
             daily["campaigns"] = dict(daily.get("campaigns", {}))
             daily["next_campaign_at"] = dict(daily.get("next_campaign_at", {}))

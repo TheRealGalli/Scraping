@@ -205,6 +205,13 @@ def main(argv=None):
             mailbox.update(total=mailbox.get("total", 0) + mailbox_delta, legacy_count=len(legacy_today))
             return {dk: daily, mk: mailbox}, None
         store.atomic([dk, mk], seed)
+        from services.campaign_selection import build_selection_queues
+        queues = build_selection_queues(
+            store.all("contacts"), store.all("pairs"), store.all("suppressions"),
+            {c: store.get("campaigns", c) for c in CATALOG}, utcnow(),
+        )
+        # Shortlists are derived data, independent of the bulk-report checkpoint.
+        (checkpoint.real if checkpoint else store).put_many("selection_queues", queues)
         def ready(d):
             return {GLOBAL: dict(d[GLOBAL], migration_ready=True, contacts_synced_at=utcnow(), last_import=run_id, backup=backup_url, backup_signature=signature, backup_day=backup_day)}, None
         store.atomic([GLOBAL], ready)

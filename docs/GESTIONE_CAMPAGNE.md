@@ -155,3 +155,21 @@ La sincronizzazione incrementale mantiene i 15 minuti e non cambia gli interrutt
 Seguire `OTTIMIZZAZIONE_COSTI.md` per permessi del checkpoint, bootstrap e verifica
 di due cicli prima di riattivare lo Scheduler di sincronizzazione. I backup ora
 sono creati a input modificati o al primo ciclo del giorno, evitando copie identiche.
+
+## Migliorie del riepilogo
+
+- [x] Panoramica — ordinamento applicato il 2 novembre 2026: mostrare subito
+  sotto l'intestazione le righe del giorno live più recente, poi gli altri giorni
+  live in ordine di data decrescente. Mantenere le righe test in fondo, anch'esse
+  dalla data più recente alla meno recente. L'ordine è applicato nella generazione
+  del report, così resta coerente a ogni sincronizzazione. Pubblicata sul solo job
+  campaign-admin l'immagine panoramica-desc-20261102-083553; esecuzione report
+  campaign-admin-8mlqf completata con successo. Gli argomenti permanenti del job
+  restano sync con il backup bucket esistente.
+
+## Selezione dei destinatari preparata
+
+La nuova selezione dà precedenza ai contatti in target mai raggiunti, distribuendo
+gli invii fra città e province. Vedere [regole e attivazione](SELEZIONE_CONTATTI.md).
+Richiede il nuovo sync e SMART_SELECTION_ENABLED=True sul servizio: la sola
+modifica del codice locale non cambia il comportamento del servizio attivo.

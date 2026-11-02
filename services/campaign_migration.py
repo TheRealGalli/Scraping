@@ -29,13 +29,16 @@ def prepare_import(rows, existing, overrides, legacy_campaign, now):
             previous = existing.get(cid, {})
             order = list(CATALOG)
             offset = int(cid[:8], 16) % len(order)
-            contacts[cid] = dict(previous, email=email, sectors=[], sources=[], source_count=0, enabled=overrides.get(cid, {}).get("enabled", previous.get("enabled", True)), reference=overrides.get(cid, {}).get("reference", previous.get("reference", "")), campaign_order=previous.get("campaign_order", order[offset:] + order[:offset]), history=list(previous.get("history", [])), sent=list(previous.get("sent", [])), legacy_keys=list(previous.get("legacy_keys", [])))
+            contacts[cid] = dict(previous, email=email, sectors=[], sources=[], locations=[], source_count=0, enabled=overrides.get(cid, {}).get("enabled", previous.get("enabled", True)), reference=overrides.get(cid, {}).get("reference", previous.get("reference", "")), campaign_order=previous.get("campaign_order", order[offset:] + order[:offset]), history=list(previous.get("history", [])), sent=list(previous.get("sent", [])), legacy_keys=list(previous.get("legacy_keys", [])))
         else:
             summary["duplicate_email_rows"] += 1
         c = contacts[cid]
         if row[4].strip() and row[4].strip() not in c["sectors"]:
             c["sectors"].append(row[4].strip())
         c["source_count"] += 1
+        location = {"region": row[1].strip()[:256], "province": row[2].strip()[:256], "city": row[3].strip()[:256]}
+        if any(location.values()) and location not in c["locations"] and len(c["locations"]) < 100:
+            c["locations"].append(location)
         # Keep the full source in Italy/backups; bound the document for shared
         # franchise mailboxes that may appear on thousands of source rows.
         if len(c["sources"]) < 100:
