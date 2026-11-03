@@ -12,12 +12,15 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+LEAD_HEADERS = ["Place ID", "Regione", "Provincia", "Città", "Settore", "Sito Web", "Email", "Stato Invio", "Data Invio", "Rating", "Recensioni"]
+
 class SheetsService:
     def __init__(self, spreadsheet_id: str = None, sheet_name: str = None):
         self.spreadsheet_id = spreadsheet_id or settings.SPREADSHEET_ID
         self.sheet_name = sheet_name or settings.SHEET_NAME
         self.client = None
         self.sheet = None
+        self._state_sheet = None
 
     def _get_client(self):
         if not self.client:
@@ -67,18 +70,18 @@ class SheetsService:
                 self.sheet = spreadsheet.worksheet(self.sheet_name)
             except gspread.exceptions.WorksheetNotFound:
                 # If sheet doesn't exist, create it
-                self.sheet = spreadsheet.add_worksheet(title=self.sheet_name, rows="1000", cols="9")
+                self.sheet = spreadsheet.add_worksheet(title=self.sheet_name, rows="1000", cols="11")
                 self._ensure_headers()
         return self.sheet
 
     def _ensure_headers(self):
         """Ensures header row is present in the worksheet."""
-        headers = ["Place ID", "Regione", "Provincia", "Città", "Settore", "Sito Web", "Email", "Stato Invio", "Data Invio", "Rating", "Recensioni"]
+        headers = LEAD_HEADERS
         existing = self.sheet.row_values(1)
         if not existing:
             self.sheet.append_row(headers)
 
-    def get_existing_place_ids(self) -> Set[str]:
+    def get_existing_place_ids(self, strict=False) -> Set[str]:
         """
         Reads Column A of the target sheet to retrieve all stored Place IDs.
         Returns a set of Place ID strings.
@@ -96,9 +99,11 @@ class SheetsService:
             return place_ids
         except Exception as e:
             logger.error(f"Error fetching existing Place IDs from Google Sheet: {type(e).__name__} - {e}")
+            if strict:
+                raise
             return set()
 
-    def append_lead_records(self, records: List[Dict[str, Any]]) -> int:
+    def append_lead_records(self, records: List[Dict[str, Any]], strict=False) -> int:
         """
         Appends a list of lead records to the worksheet.
         Each record dictionary contains:
@@ -125,9 +130,9 @@ class SheetsService:
             email = (r.get("email") or "").strip()
             stato_invio = "Da inviare" if email else "Nessuna email"
             rating_val = r.get("rating", "")
-            rating_str = str(rating_val) if rating_val is not None else ""
+            rating_value = rating_val if rating_val is not None else ""
             reviews_val = r.get("user_rating_count", "")
-            reviews_str = str(reviews_val) if reviews_val is not None else ""
+            reviews_value = reviews_val if reviews_val is not None else ""
             
             row = [
                 r.get("place_id", "").strip(),
@@ -139,18 +144,20 @@ class SheetsService:
                 email,
                 stato_invio,
                 "",  # Data Invio (empty)
-                rating_str,
-                reviews_str
+                rating_value,
+                reviews_value
             ]
             rows_to_append.append(row)
 
         try:
             ws = self._get_worksheet()
-            ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+            ws.append_rows(rows_to_append, value_input_option="RAW")
             logger.info(f"Successfully appended {len(rows_to_append)} rows to Google Sheet '{self.sheet_name}'.")
             return len(rows_to_append)
         except Exception as e:
             logger.error(f"Error appending rows to Google Sheet: {type(e).__name__} - {e}")
+            if strict:
+                raise
             return 0
 
     def get_existing_sent_emails(self) -> Set[str]:
@@ -276,18 +283,22 @@ class SheetsService:
             logger.warning(f"Could not read matrix_index from ConfigState sheet: {e}")
             return 0
 
-    def update_matrix_index(self, next_index: int) -> bool:
+    def update_matrix_index(self, next_index: int, strict=False) -> bool:
         """
         Updates stored matrix index in 'ConfigState' worksheet cell B2.
         """
         try:
-            client = self._get_client()
-            spreadsheet = client.open_by_key(self.spreadsheet_id)
-            try:
-                state_ws = spreadsheet.worksheet("ConfigState")
-            except gspread.exceptions.WorksheetNotFound:
-                state_ws = spreadsheet.add_worksheet(title="ConfigState", rows="10", cols="3")
-                state_ws.append_row(["Key", "Value", "Last Updated"])
+            state_ws = self._state_sheet
+            if state_ws is None:
+                client = self._get_client()
+                spreadsheet = client.open_by_key(self.spreadsheet_id)
+                try:
+                    state_ws = spreadsheet.worksheet("ConfigState")
+                except gspread.exceptions.WorksheetNotFound:
+                    if strict:
+                        raise
+                    state_ws = spreadsheet.add_worksheet(title="ConfigState", rows="10", cols="3")
+                    state_ws.append_row(["Key", "Value", "Last Updated"])
 
             from services.time_filter import get_rome_time
             now_str = get_rome_time().strftime("%Y-%m-%d %H:%M:%S")
@@ -296,7 +307,42 @@ class SheetsService:
             return True
         except Exception as e:
             logger.error(f"Error updating matrix_index in ConfigState sheet: {e}")
+            if strict:
+                raise
             return False
+
+    def scraper_state(self, expand=False):
+        """Validate the named source and cursor before any paid Places request."""
+        from services.geo_matrix import convert_matrix_offset, sector_names_for_profile
+        from services.time_filter import get_rome_time
+
+        if self.sheet_name != "Italy":
+            raise ValueError("This scraper must write to the Italy source sheet")
+        book = self._get_client().open_by_key(self.spreadsheet_id)
+        source_ws = book.worksheet(self.sheet_name)
+        if source_ws.row_values(1)[:9] != LEAD_HEADERS[:9]:
+            raise ValueError("Unexpected source headers: " + self.sheet_name)
+        state_ws = book.worksheet("ConfigState")
+        rows = state_ws.get_all_values()
+        if len(rows) < 2 or len(rows[1]) < 2 or rows[1][0] != "matrix_index" or not str(rows[1][1]).strip().isdigit():
+            raise ValueError("Missing or invalid saved scraper cursor; refusing to restart at zero")
+        index = int(str(rows[1][1]).strip())
+        profile = "legacy_v1"
+        if len(rows) > 2 and any(rows[2]):
+            if rows[2][0] != "sector_profile" or len(rows[2]) < 2:
+                raise ValueError("Unexpected ConfigState row 3")
+            profile = rows[2][1]
+        sector_names_for_profile(profile)
+        if expand and profile != "expanded_v3":
+            index = convert_matrix_offset(index, settings.CYCLES_PER_CITY, profile, "expanded_v3")
+            stamp = get_rome_time().strftime("%Y-%m-%d %H:%M:%S")
+            state_ws.update(range_name="A2:C3", values=[
+                ["matrix_index", str(index), stamp], ["sector_profile", "expanded_v3", stamp],
+            ], value_input_option="RAW")
+            profile = "expanded_v3"
+        self.sheet, self._state_sheet = source_ws, state_ws
+        return {"sheet": self.sheet_name, "profile": profile, "index": index,
+                "sectors": sector_names_for_profile(profile)}
 
 
     def get_matrix_profile(self) -> str:

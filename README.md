@@ -11,6 +11,9 @@ Gestione quotidiana e coordinatore unico: [guida breve](docs/GESTIONE_CAMPAGNE.m
 Priorità ai nuovi contatti in target e distribuzione geografica:
 [regole e attivazione dopo il deploy Git](docs/SELEZIONE_CONTATTI.md).
 
+Scraper con i nuovi settori, scrittura in Italy e orari:
+[riattivazione dal deploy Git](docs/RIATTIVAZIONE_SCRAPER.md).
+
 Analisi e rilascio dei risparmi: [ottimizzazione costi](docs/OTTIMIZZAZIONE_COSTI.md).
 
 **Prima di distribuire:** leggere [la guida GCP](docs/GUIDA_GCP_SEI_CAMPAGNE.md).

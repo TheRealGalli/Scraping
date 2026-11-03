@@ -1,4 +1,5 @@
 import logging
+import json
 import time
 from typing import Dict, Any, List
 
@@ -38,16 +39,18 @@ def run_lead_generation_task():
     email_extractor = EmailExtractor()
 
     # 2. Fetch existing Place IDs & stored matrix index from Google Sheets
-    existing_place_ids = sheets_service.get_existing_place_ids()
-    start_offset = sheets_service.get_matrix_index()
+    state = sheets_service.scraper_state(expand=True)
+    existing_place_ids = sheets_service.get_existing_place_ids(strict=True)
+    start_offset = state["index"]
 
     from services.geo_matrix import get_all_search_targets
-    sector_profile = sheets_service.get_matrix_profile()
+    sector_profile = state["profile"]
     total_targets = len(get_all_search_targets(profile=sector_profile))
 
     new_records: List[Dict[str, Any]] = []
     processed_count = 0
     executed_queries = 0
+    inserted = 0
 
     logger.info(f"Starting matrix search from Google Sheets stored index {start_offset}/{total_targets}.")
 
@@ -135,16 +138,20 @@ def run_lead_generation_task():
             if processed_count >= settings.MAX_PLACES_PER_RUN:
                 break
 
-    # 4. Save updated matrix index to Google Sheets ConfigState tab for seamless continuation next run
-    if total_targets > 0 and executed_queries > 0:
-        next_index = (start_offset + executed_queries) % total_targets
-        sheets_service.update_matrix_index(next_index)
-
-    # 5. Batch append new records to Google Sheet
+    # 4. Save Italy rows before advancing the cursor, so failed writes can retry.
     if new_records:
-        inserted = sheets_service.append_lead_records(new_records)
+        inserted = sheets_service.append_lead_records(new_records, strict=True)
         logger.info(f"Successfully processed and appended {inserted} new lead records.")
     else:
         logger.info("No new lead records found or inserted in this run.")
 
+    # 5. Fresh Place IDs prevent duplicates if a saved batch is retried.
+    if total_targets > 0 and executed_queries > 0:
+        next_index = (start_offset + executed_queries) % total_targets
+        sheets_service.update_matrix_index(next_index, strict=True)
+
+    logger.info(json.dumps({"event": "scraper_completed", "sheet": sheets_service.sheet_name,
+                           "profile": sector_profile, "queries": executed_queries,
+                           "rows_appended": inserted,
+                           "next_index": (start_offset + executed_queries) % total_targets if total_targets else start_offset}))
     logger.info("Lead Generation background worker process completed.")

@@ -11,7 +11,7 @@ COMMIT = "a" * 40
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def activate(tmp_path, *, fail_sync=False, scheduler="ENABLED", pending=False):
+def activate(tmp_path, *, fail_sync=False, scheduler="ENABLED", pending=False, script_name="activate_smart_selection.sh"):
     log = tmp_path / "calls.jsonl"
     fake = tmp_path / "gcloud"
     fake.write_text(
@@ -24,7 +24,10 @@ previous = log.read_text().splitlines() if log.exists() else []
 with log.open('a') as output:
     output.write(json.dumps(args) + '\\n')
 if args[:3] == ['run', 'services', 'describe']:
-    print('scraping-new scraping-new europe-west1-docker.pkg.dev/scraping-505816/test/image:' + 'a' * 40)
+    if '--format=json' in args:
+        print(json.dumps({'spec': {'template': {'spec': {'containers': [{'env': []}]}}}}))
+    else:
+        print('scraping-new scraping-new europe-west1-docker.pkg.dev/scraping-505816/test/image:' + 'a' * 40)
 elif args[:3] == ['run', 'jobs', 'describe']:
     print('sync')
 elif args[:3] == ['scheduler', 'jobs', 'describe']:
@@ -40,7 +43,7 @@ elif args[:3] == ['run', 'jobs', 'execute'] and os.environ['SELECTION_TEST_FAIL_
 """
     )
     fake.chmod(0o755)
-    script = (ROOT / "scripts/activate_smart_selection.sh").read_text()
+    script = (ROOT / "scripts" / script_name).read_text()
     script = script.replace("gcloud ", shlex.quote(str(fake)) + " ")
     script = script.replace("sleep 5", ":").replace("sleep 10", ":")
     local = tmp_path / "activate.sh"

@@ -92,7 +92,7 @@ def configure150(store, sheets, bucket_name, expand_scraper=False, focus=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150", "focus150"])
+    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150", "focus150", "scraper-check"])
     parser.add_argument("--legacy-campaign", choices=["unknown", "nfc"], default="unknown")
     parser.add_argument("--backup-bucket", default="")
     parser.add_argument("--expand-scraper", action="store_true", help="Only while the scraper Scheduler is paused")
@@ -100,6 +100,11 @@ def main(argv=None):
     parser.add_argument("--outcome", choices=["accepted", "not_sent"])
     parser.add_argument("--evidence", default="")
     args = parser.parse_args(argv)
+    if args.command == "scraper-check":
+        from services.sheets_service import SheetsService
+        state = SheetsService().scraper_state(expand=True)
+        print(json.dumps({"event": "scraper_check", "status": "ready", **state}, ensure_ascii=False))
+        return
     store, sheets, now = FirestoreStore(), CampaignSheets(), utcnow()
     if args.command in {"configure150", "focus150"}:
         configure150(store, sheets, args.backup_bucket, args.expand_scraper, focus=args.command == "focus150")
