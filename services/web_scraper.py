@@ -1,6 +1,6 @@
 import logging
 import urllib.parse
-from typing import List
+from typing import Any, Dict, List, Tuple
 import httpx
 from bs4 import BeautifulSoup
 
@@ -19,6 +19,11 @@ HEADERS = {
 }
 
 CONTACT_PATH_KEYWORDS = ["contatt", "chi-siamo", "about", "contact", "info"]
+# A section that already shows the work: gallery, portfolio, catalogue.
+SHOWCASE_KEYWORDS = ["galleria", "gallery", "portfolio", "realizzazioni", "lavori", "progetti",
+                     "lookbook", "catalogo"]
+SOCIAL_DOMAINS = {"instagram": "instagram.com", "facebook": "facebook.com", "tiktok": "tiktok.com"}
+VIDEO_HOSTS = ["youtube.com", "youtu.be", "vimeo.com"]
 
 class WebScraper:
     def __init__(self, timeout: float = None):
@@ -84,21 +89,51 @@ class WebScraper:
 
         return contact_urls
 
+    def presentation_signals(self, html_content: str) -> Dict[str, Any]:
+        """How the homepage presents the work: social links, showcase section, video, images."""
+        signals = {"fetched": bool(html_content), "social": [], "showcase": False, "video": False, "images": 0}
+        if not html_content:
+            return signals
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+            for a_tag in soup.find_all("a", href=True):
+                href = a_tag["href"].strip().lower()
+                social = [name for name, domain in SOCIAL_DOMAINS.items() if domain in href]
+                signals["social"] += [name for name in social if name not in signals["social"]]
+                # A showcase counts only on the site itself, not on social or video hosts.
+                if social or href.startswith(("mailto:", "tel:")) or any(host in href for host in VIDEO_HOSTS):
+                    continue
+                words = href + " " + a_tag.get_text(" ", strip=True).lower()
+                if any(kw in words for kw in SHOWCASE_KEYWORDS):
+                    signals["showcase"] = True
+            embeds = [tag.get("src", "") for tag in soup.find_all("iframe")]
+            signals["video"] = bool(soup.find("video")) or any(host in src for src in embeds for host in VIDEO_HOSTS)
+            signals["images"] = len(soup.find_all("img"))
+        except Exception as e:
+            logger.debug(f"Error reading presentation signals: {e}")
+        return signals
+
     def scrape_website_content(self, url: str) -> str:
         """
         Fetches website homepage and up to 2 contact subpages.
         Returns combined clean text extracted from HTML.
         """
+        return self.scrape_website(url)[0]
+
+    def scrape_website(self, url: str) -> Tuple[str, Dict[str, Any]]:
+        """Same fetches as scrape_website_content, plus the homepage presentation signals."""
         if not url or not url.startswith("http"):
-            return ""
+            return "", self.presentation_signals("")
 
         combined_text = []
+        homepage_html = ""
 
         try:
             with httpx.Client(timeout=self.timeout, headers=HEADERS, follow_redirects=True) as client:
                 logger.info(f"Fetching homepage: {url}")
                 resp = client.get(url)
                 if resp.status_code == 200:
+                    homepage_html = resp.text
                     homepage_text = self.clean_html_to_text(resp.text)
                     combined_text.append(f"--- HOMEPAGE ({url}) ---\n" + homepage_text)
                     
@@ -115,4 +150,4 @@ class WebScraper:
         except Exception as e:
             logger.warning(f"Failed to fetch main website {url}: {e}")
 
-        return "\n\n".join(combined_text)
+        return "\n\n".join(combined_text), self.presentation_signals(homepage_html)

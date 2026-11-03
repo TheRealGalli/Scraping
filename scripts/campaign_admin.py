@@ -32,9 +32,9 @@ def configure150(store, sheets, bucket_name, expand_scraper=False, focus=False):
     """Explicit backed-up repair/configuration; source leads are never rewritten."""
     from services.campaign_sheets import HEADERS
     from services.campaign_catalog import DEFAULT_LIMITS, FOCUS_LIMITS, SECTOR_RULES, RULE_VERSION
-    from services.geo_matrix import convert_matrix_offset
+    from services.geo_matrix import CURRENT_SECTOR_PROFILE, SECTOR_PROFILES, convert_matrix_offset
     limits = FOCUS_LIMITS if focus else DEFAULT_LIMITS
-    target_profile = "expanded_v3" if focus else "expanded_v2"
+    target_profile = CURRENT_SECTOR_PROFILE if focus else "expanded_v2"
     now, token = utcnow(), uuid.uuid4().hex
     run_id = now.strftime("%Y%m%dT%H%M%SZ") + "-configure-" + token[:8]
     def acquire(d):
@@ -54,10 +54,11 @@ def configure150(store, sheets, bucket_name, expand_scraper=False, focus=False):
             if len(state_values) >= 3 and any(state_values[2]) and state_values[2][0] != "sector_profile":
                 raise ValueError("ConfigState row 3 already in use")
             profile = state_values[2][1] if len(state_values) >= 3 and len(state_values[2]) >= 2 else "legacy_v1"
-            if profile not in {"legacy_v1", "expanded_v2", "expanded_v3"}:
+            if profile not in SECTOR_PROFILES:
                 raise ValueError("Unknown scraper profile")
             offset = int(state_values[1][1])
-            if profile == "expanded_v3":
+            # Never move a cursor back to a smaller taxonomy.
+            if SECTOR_PROFILES.index(profile) > SECTOR_PROFILES.index(target_profile):
                 target_profile = profile
             offset = convert_matrix_offset(offset, max(1, settings.CYCLES_PER_CITY), profile, target_profile)
         # Repair the explicit control tab, including a malformed pasted A1.

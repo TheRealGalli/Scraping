@@ -11,6 +11,7 @@ from services.places_service import PlacesService
 from services.custom_search_service import CustomSearchService
 from services.web_scraper import WebScraper
 from services.email_extractor import EmailExtractor, is_support_email
+from services.lead_signals import SKIPPED_STATUSES, describe_site, hooks
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +80,16 @@ def run_lead_generation_task():
             if not place_id or place_id in existing_place_ids:
                 logger.debug(f"Place ID '{place_id}' already stored or invalid. Discarding duplicate.")
                 continue
+            if place.get("business_status") in SKIPPED_STATUSES:
+                logger.info(f"Skipping '{place.get('name', '')}': Google status {place['business_status']}.")
+                continue
 
             business_name = place.get("name", "")
             website = place.get("website", "")
             rating = place.get("rating")
             user_rating_count = place.get("user_rating_count")
             email = ""
+            site_signals = None
 
             # OPTIMIZATION LEVEL 1: Direct Gemini Grounding search (DISABLED by default to avoid Vertex AI costs)
             # Re-enable via ENABLE_GEMINI_GROUNDING=True env var only when needed
@@ -100,7 +105,7 @@ def run_lead_generation_task():
 
                 if website:
                     logger.info(f"Level 2: Fetching website '{website}' for Mailto & Regex extraction...")
-                    web_text = web_scraper.scrape_website_content(website)
+                    web_text, site_signals = web_scraper.scrape_website(website)
                     
                     if web_text:
                         # Check Regex first (0 AI tokens)
@@ -125,7 +130,12 @@ def run_lead_generation_task():
                 "website": website,
                 "email": email,
                 "rating": rating,
-                "user_rating_count": user_rating_count
+                "user_rating_count": user_rating_count,
+                "google_category": place.get("google_category", ""),
+                "google_photos": place.get("google_photos"),
+                "site_signals": describe_site(website, site_signals),
+                "hook": hooks(website, site_signals, place.get("google_photos")),
+                "maps_url": place.get("maps_url", "")
             }
 
             new_records.append(record)
@@ -140,7 +150,7 @@ def run_lead_generation_task():
 
     # 4. Save Italy rows before advancing the cursor, so failed writes can retry.
     if new_records:
-        inserted = sheets_service.append_lead_records(new_records, strict=True)
+        inserted = sheets_service.append_lead_records(new_records, strict=True, signals=state["signals"])
         logger.info(f"Successfully processed and appended {inserted} new lead records.")
     else:
         logger.info("No new lead records found or inserted in this run.")

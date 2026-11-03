@@ -13,6 +13,8 @@ SCOPES = [
 ]
 
 LEAD_HEADERS = ["Place ID", "Regione", "Provincia", "Città", "Settore", "Sito Web", "Email", "Stato Invio", "Data Invio", "Rating", "Recensioni"]
+# Optional enrichment in L:P; A:K keep their historical meaning.
+SIGNAL_HEADERS = ["Categoria Google", "Foto Google", "Segnali sito", "Aggancio", "Google Maps"]
 
 class SheetsService:
     def __init__(self, spreadsheet_id: str = None, sheet_name: str = None):
@@ -70,13 +72,13 @@ class SheetsService:
                 self.sheet = spreadsheet.worksheet(self.sheet_name)
             except gspread.exceptions.WorksheetNotFound:
                 # If sheet doesn't exist, create it
-                self.sheet = spreadsheet.add_worksheet(title=self.sheet_name, rows="1000", cols="11")
+                self.sheet = spreadsheet.add_worksheet(title=self.sheet_name, rows="1000", cols=str(len(LEAD_HEADERS + SIGNAL_HEADERS)))
                 self._ensure_headers()
         return self.sheet
 
     def _ensure_headers(self):
         """Ensures header row is present in the worksheet."""
-        headers = LEAD_HEADERS
+        headers = LEAD_HEADERS + SIGNAL_HEADERS
         existing = self.sheet.row_values(1)
         if not existing:
             self.sheet.append_row(headers)
@@ -103,7 +105,7 @@ class SheetsService:
                 raise
             return set()
 
-    def append_lead_records(self, records: List[Dict[str, Any]], strict=False) -> int:
+    def append_lead_records(self, records: List[Dict[str, Any]], strict=False, signals=False) -> int:
         """
         Appends a list of lead records to the worksheet.
         Each record dictionary contains:
@@ -121,6 +123,7 @@ class SheetsService:
         9. Data Invio (empty)
         10. Rating
         11. Recensioni
+        12-16. SIGNAL_HEADERS, only when signals=True (L:P headers verified)
         """
         if not records:
             return 0
@@ -147,6 +150,15 @@ class SheetsService:
                 rating_value,
                 reviews_value
             ]
+            if signals:
+                photos = r.get("google_photos")
+                row += [
+                    (r.get("google_category") or "").strip(),
+                    photos if photos is not None else "",
+                    (r.get("site_signals") or "").strip(),
+                    (r.get("hook") or "").strip(),
+                    (r.get("maps_url") or "").strip(),
+                ]
             rows_to_append.append(row)
 
         try:
@@ -313,15 +325,19 @@ class SheetsService:
 
     def scraper_state(self, expand=False):
         """Validate the named source and cursor before any paid Places request."""
-        from services.geo_matrix import convert_matrix_offset, sector_names_for_profile
+        from services.geo_matrix import CURRENT_SECTOR_PROFILE, convert_matrix_offset, sector_names_for_profile
         from services.time_filter import get_rome_time
 
         if self.sheet_name != "Italy":
             raise ValueError("This scraper must write to the Italy source sheet")
         book = self._get_client().open_by_key(self.spreadsheet_id)
         source_ws = book.worksheet(self.sheet_name)
-        if source_ws.row_values(1)[:9] != LEAD_HEADERS[:9]:
+        header = source_ws.row_values(1)
+        if header[:9] != LEAD_HEADERS[:9]:
             raise ValueError("Unexpected source headers: " + self.sheet_name)
+        signals = header[11:16] == SIGNAL_HEADERS
+        # Claim only empty header cells; manual columns in L:P disable enrichment.
+        claim_signals = expand and not signals and not any(str(cell).strip() for cell in header[11:16])
         state_ws = book.worksheet("ConfigState")
         rows = state_ws.get_all_values()
         if len(rows) < 2 or len(rows[1]) < 2 or rows[1][0] != "matrix_index" or not str(rows[1][1]).strip().isdigit():
@@ -333,16 +349,19 @@ class SheetsService:
                 raise ValueError("Unexpected ConfigState row 3")
             profile = rows[2][1]
         sector_names_for_profile(profile)
-        if expand and profile != "expanded_v3":
-            index = convert_matrix_offset(index, settings.CYCLES_PER_CITY, profile, "expanded_v3")
+        if expand and profile != CURRENT_SECTOR_PROFILE:
+            index = convert_matrix_offset(index, settings.CYCLES_PER_CITY, profile, CURRENT_SECTOR_PROFILE)
             stamp = get_rome_time().strftime("%Y-%m-%d %H:%M:%S")
             state_ws.update(range_name="A2:C3", values=[
-                ["matrix_index", str(index), stamp], ["sector_profile", "expanded_v3", stamp],
+                ["matrix_index", str(index), stamp], ["sector_profile", CURRENT_SECTOR_PROFILE, stamp],
             ], value_input_option="RAW")
-            profile = "expanded_v3"
+            profile = CURRENT_SECTOR_PROFILE
+        if claim_signals:
+            source_ws.update(range_name="L1:P1", values=[SIGNAL_HEADERS], value_input_option="RAW")
+            signals = True
         self.sheet, self._state_sheet = source_ws, state_ws
         return {"sheet": self.sheet_name, "profile": profile, "index": index,
-                "sectors": sector_names_for_profile(profile)}
+                "sectors": sector_names_for_profile(profile), "signals": signals}
 
 
     def get_matrix_profile(self) -> str:

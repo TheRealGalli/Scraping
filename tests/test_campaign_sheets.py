@@ -207,8 +207,31 @@ def test_focus150_keeps_only_nfc_and_media_and_preserves_sent_history(monkeypatc
         assert configs[cid]["interval_seconds"] == 240
     assert not configs["forecasting"]["enabled"]
     assert store.get("contacts", "existing")["sent"] == ["nfc", "media"]
-    assert adapter.rows("ConfigState")[1][1] == "14"
-    assert adapter.rows("ConfigState")[2][1] == "expanded_v3"
+    # Same next city and sector: v2 offset 12 is city 1, sector 1 of 21 in v4.
+    assert adapter.rows("ConfigState")[1][1] == "22"
+    assert adapter.rows("ConfigState")[2][1] == "expanded_v4"
     configure150(store, adapter, "test", True, focus=True)
-    assert adapter.rows("ConfigState")[1][1] == "14"
+    assert adapter.rows("ConfigState")[1][1] == "22"
     assert store.get(*GLOBAL)["paused"] is True
+
+
+
+def test_sector_rules_tab_follows_a_new_rule_version_once():
+    from services.campaign_catalog import RULE_VERSION, SECTOR_RULES
+
+    class FullBook(Book):
+        def worksheets(self):
+            return list(self.sheets.values())
+
+    sheets = [Sheet(name, [HEADERS[name]]) for name in HEADERS]
+    book = FullBook(sheets)
+    rules = book.worksheet("RegoleSettori")
+    rules.values += [["nfc", "Ristorazione", "2026-11-01-v3"], ["media", "Gioiellerie", "2026-11-01-v3"]]
+    adapter = CampaignSheets(book)
+    adapter.ensure()
+    expected = [[c, s, RULE_VERSION] for c in CATALOG for s in SECTOR_RULES[c]]
+    assert rules.values == [HEADERS["RegoleSettori"]] + expected
+    assert ["media", "Tatuaggi e Piercing", RULE_VERSION] in rules.values
+    rules.calls.clear()
+    adapter.ensure()
+    assert rules.calls == []

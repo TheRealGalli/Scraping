@@ -12,8 +12,9 @@ non è un blocco applicativo della spesa.
 
 ## Settori e ripresa
 
-Il profilo expanded_v3 comprende 13 settori, inclusi Agenzie Immobiliari,
-Architettura e Interior Design, Eventi e Wedding, Gioiellerie e Studi Dentistici.
+Il profilo expanded_v4 comprende 21 settori: ai 13 di expanded_v3 si aggiungono
+gli otto segmenti per NFC e Video & Slide descritti in
+[SEGMENTI_NFC_VIDEO.md](SEGMENTI_NFC_VIDEO.md).
 Il precontrollo verifica Italy e ConfigState. Se il profilo era precedente,
 converte il cursore una sola volta mantenendo la stessa prossima città e lo stesso
 settore di ricerca. I nuovi settori entrano nel giro corrente e in quelli successivi;
@@ -25,8 +26,9 @@ di chiamare Maps. Il numero di ricerche per giro rimane MAX_SEARCH_QUERIES_PER_R
 ## Scrittura nel file con più schede
 
 Lo scraper seleziona Italy per nome: ordine e numero delle altre schede non
-influiscono sulla destinazione. Aggiunge nuove righe di 11 colonne A:K e mantiene
-le righe esistenti, inclusi gli stati e le date di invio storici. Rating e numero
+influiscono sulla destinazione. Aggiunge nuove righe di 16 colonne A:P (A:K come
+prima, segnali in L:P) e mantiene le righe esistenti, inclusi gli stati e le date
+di invio storici. Se L1:P1 contengono colonne manuali, scrive solo A:K. Rating e numero
 di recensioni sono numeri; i testi sono scritti con RAW.
 
 I Place ID già presenti vengono scartati. La posizione di avanzamento viene
@@ -59,7 +61,9 @@ ricerca Maps per giro; non stampa chiavi o credenziali presenti nell'ambiente.
 
 Con una ricerca per giro, 30 avvii/giorno corrispondono a 900 ricerche in un mese
 di 30 giorni o 930 in uno di 31, esclusi retry, prove manuali e altri consumatori.
-I campi attuali websiteUri, rating e userRatingCount attivano Text Search Enterprise.
+I campi attuali websiteUri, rating e userRatingCount attivano Text Search Enterprise;
+businessStatus, primaryTypeDisplayName, googleMapsUri e photos sono Pro e non
+cambiano il livello fatturato.
 Il listino standard consultato il 3 novembre 2026 prevede 1.000 richieste gratuite
 mensili di questo SKU; eventuali piani, crediti e utilizzi condivisi del billing
 account vanno verificati nella fatturazione del proprietario. Le eventuali

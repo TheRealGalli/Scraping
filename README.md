@@ -14,6 +14,9 @@ Priorità ai nuovi contatti in target e distribuzione geografica:
 Scraper con i nuovi settori, scrittura in Italy e orari:
 [riattivazione dal deploy Git](docs/RIATTIVAZIONE_SCRAPER.md).
 
+Segmenti per NFC e Video & Slide (tatuaggi, serramenti, artigiani, cantine...)
+e segnali in Italy L:P: [guida](docs/SEGMENTI_NFC_VIDEO.md).
+
 Analisi e rilascio dei risparmi: [ottimizzazione costi](docs/OTTIMIZZAZIONE_COSTI.md).
 
 **Prima di distribuire:** leggere [la guida GCP](docs/GUIDA_GCP_SEI_CAMPAGNE.md).

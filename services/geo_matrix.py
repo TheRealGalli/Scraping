@@ -73,12 +73,31 @@ SECTORS.update({
     "Studi Dentistici": ["studio dentistico", "clinica dentale", "centro odontoiatrico", "studio odontoiatria", "studio ortodonzia", "dentista"]
 })
 
+# Freeze v3 before adding the NFC + Video & Slide segments (2026-11-03).
+EXPANDED_V3_SECTOR_NAMES = tuple(SECTORS)
+SECTORS.update({
+    "Tatuaggi e Piercing": ["studio tatuaggi", "tatuatore", "tattoo shop", "studio piercing", "tatuaggi e piercing", "studio tattoo artistico"],
+    "Serramenti e Pergole": ["serramentista", "infissi e serramenti", "porte e finestre", "installazione pergole", "pergole bioclimatiche", "tende da sole", "zanzariere e tapparelle"],
+    "Artigiani su Misura": ["falegnameria", "falegname mobili su misura", "marmista", "lavorazione marmo e pietra", "restauro mobili", "laboratorio di restauro", "arredamento su misura artigianale"],
+    "Cantine e Frantoi": ["cantina vinicola", "cantina con degustazione", "azienda vinicola vendita diretta", "frantoio", "frantoio oleario", "oleificio vendita diretta"],
+    "Autoscuole e Scuole di Lingue": ["autoscuola", "scuola guida", "scuola di lingue", "scuola di inglese", "corsi di lingue", "centro linguistico"],
+    "Noleggio Barche ed Escursioni": ["noleggio barche", "noleggio gommoni", "escursioni in barca", "tour in barca", "organizzazione escursioni", "guide escursionistiche"],
+    "Grossisti e Distributori": ["grossista alimentare", "ingrosso bevande", "distributore prodotti horeca", "commercio all'ingrosso", "cash and carry", "grossista ferramenta"],
+    "Amministratori di Condominio": ["amministratore di condominio", "studio amministrazione condomini", "amministrazioni condominiali", "gestione condomini"],
+})
+
+SECTOR_PROFILES = ("legacy_v1", "expanded_v2", "expanded_v3", "expanded_v4")
+CURRENT_SECTOR_PROFILE = SECTOR_PROFILES[-1]
+
+
 def sector_names_for_profile(profile="legacy_v1"):
     if profile == "legacy_v1":
         return list(LEGACY_SECTOR_NAMES)
     if profile == "expanded_v2":
         return list(EXPANDED_V2_SECTOR_NAMES)
     if profile == "expanded_v3":
+        return list(EXPANDED_V3_SECTOR_NAMES)
+    if profile == "expanded_v4":
         return list(SECTORS)
     raise ValueError("Unknown scraper sector profile")
 

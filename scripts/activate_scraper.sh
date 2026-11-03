@@ -44,4 +44,4 @@ gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name=
 gcloud scheduler jobs update http Scraper --project=scraping-505816 --location=europe-west8 \
   --schedule='*/20 9-18 * * *' --time-zone=Europe/Rome --quiet --format='value(name,schedule,state)'
 gcloud scheduler jobs resume Scraper --project=scraping-505816 --location=europe-west8 --quiet
-printf '%s\n' 'SCRAPER_RIATTIVATO: Italy, 13 settori, ogni 20 minuti dalle 09:00 alle 18:40 (30 avvii programmati/giorno).'
+printf '%s\n' 'SCRAPER_RIATTIVATO: Italy, 21 settori con segnali L:P, ogni 20 minuti dalle 09:00 alle 18:40 (30 avvii programmati/giorno).'

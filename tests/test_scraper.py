@@ -1,6 +1,7 @@
 import datetime
 import pytz
 import pytest
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 from main import app
@@ -218,3 +219,92 @@ def test_v3_scraper_cursor_preserves_next_task(source, cycles, offset, monkeypat
     assert before[:4] == after[:4]
     assert len(sector_names_for_profile("expanded_v3")) == 13
     assert converted == convert_matrix_offset(converted, cycles, "expanded_v3", "expanded_v3")
+
+
+@pytest.mark.parametrize("source", ["legacy_v1", "expanded_v2", "expanded_v3", "expanded_v4"])
+@pytest.mark.parametrize("cycles", [1, 2])
+@pytest.mark.parametrize("offset", [0, 7, 12, 13, 20, 21, 135])
+def test_v4_scraper_cursor_preserves_next_task(source, cycles, offset, monkeypatch):
+    from services.geo_matrix import convert_matrix_offset
+    from config import settings
+    monkeypatch.setattr(settings, "CYCLES_PER_CITY", cycles)
+    before = next(generate_search_targets(offset, source))
+    converted = convert_matrix_offset(offset, cycles, source, "expanded_v4")
+    assert next(generate_search_targets(converted, "expanded_v4"))[:4] == before[:4]
+    assert converted == convert_matrix_offset(converted, cycles, "expanded_v4", "expanded_v4")
+
+
+def test_nfc_media_segments_have_keywords_and_the_first_service_to_propose():
+    from services.campaign_catalog import SECTOR_RULES, SEGMENT_RULES_V4
+    from services.geo_matrix import sector_names_for_profile
+    v3, v4 = sector_names_for_profile("expanded_v3"), sector_names_for_profile("expanded_v4")
+    assert len(v3) == 13 and len(v4) == 21 and v4[:13] == v3
+    assert set(v4[13:]) == set(SEGMENT_RULES_V4)
+    for sector in v4[13:]:
+        assert len(SECTORS[sector]) >= 4 and "," not in sector
+        targeted = {c for c, sectors in SECTOR_RULES.items() if sector in sectors}
+        assert targeted == set(SEGMENT_RULES_V4[sector])
+    for sector in ("Tatuaggi e Piercing", "Cantine e Frantoi", "Autoscuole e Scuole di Lingue"):
+        assert sector in SECTOR_RULES["nfc"]
+    assert "Serramenti e Pergole" not in SECTOR_RULES["nfc"]
+    assert SECTOR_RULES["consulenza"][-1] == "Amministratori di Condominio"
+    assert all(len(set(sectors)) == len(sectors) for sectors in SECTOR_RULES.values())
+
+
+def test_places_requests_free_pro_fields_and_parses_them(monkeypatch):
+    from services import places_service
+    payload = {"places": [{
+        "id": "abc", "displayName": {"text": "Inchiostro"}, "websiteUri": "https://ink.it",
+        "rating": 4.9, "userRatingCount": 31, "businessStatus": "OPERATIONAL",
+        "primaryTypeDisplayName": {"text": "Studio di tatuaggi"},
+        "googleMapsUri": "https://maps.google.com/?cid=1", "photos": [{"name": str(i)} for i in range(7)],
+    }, {"id": "bare", "displayName": {"text": "Senza foto"}}]}
+    sent = {}
+
+    class Client:
+        def __init__(self, timeout): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def post(self, url, json, headers):
+            sent["mask"] = headers["X-Goog-FieldMask"]
+            return MagicMock(status_code=200, json=lambda: payload)
+
+    monkeypatch.setattr(places_service.httpx, "Client", Client)
+    results = places_service.PlacesService(api_key="TEST_KEY").search_places("tatuatore Milano")
+    for field in ("businessStatus", "primaryTypeDisplayName", "googleMapsUri", "photos", "websiteUri"):
+        assert "places." + field in sent["mask"].split(",")
+    assert results[0]["google_category"] == "Studio di tatuaggi" and results[0]["google_photos"] == 7
+    assert results[0]["business_status"] == "OPERATIONAL"
+    assert results[1]["google_photos"] == 0 and results[1]["google_category"] == ""
+
+
+def test_presentation_signals_read_only_the_site_showcase():
+    scraper = WebScraper()
+    html = """
+    <a href="https://www.instagram.com/inchiostro">I nostri lavori</a>
+    <a href="https://facebook.com/inchiostro">Facebook</a>
+    <a href="mailto:info@ink.it">Galleria</a>
+    <img src="a.jpg"><img src="b.jpg">
+    """
+    signals = scraper.presentation_signals(html)
+    assert signals == {"fetched": True, "social": ["instagram", "facebook"], "showcase": False,
+                       "video": False, "images": 2}
+    rich = scraper.presentation_signals('<a href="/portfolio">Tatuaggi</a><iframe src="https://www.youtube.com/embed/x"></iframe>')
+    assert rich["showcase"] and rich["video"] and not rich["social"]
+    assert scraper.presentation_signals("")["fetched"] is False
+
+
+@pytest.mark.parametrize("website,signals,photos,site,hook", [
+    ("", None, 10, "nessun sito", "foto da valorizzare · senza sito"),
+    ("", None, 2, "nessun sito", "senza sito"),
+    ("https://a.it", {"fetched": False}, 10, "sito non raggiungibile", ""),
+    ("https://a.it", None, 10, "sito non analizzato", ""),
+    ("https://a.it", {"fetched": True, "social": [], "showcase": True, "video": False, "images": 30},
+     10, "galleria · senza video · 30 immagini", ""),
+    ("https://a.it", {"fetched": True, "social": ["tiktok"], "showcase": False, "video": False, "images": 1},
+     5, "social: tiktok · senza galleria · senza video · 1 immagine", "foto da valorizzare"),
+])
+def test_signals_are_readable_facts(website, signals, photos, site, hook):
+    from services.lead_signals import describe_site, hooks
+    assert describe_site(website, signals) == site
+    assert hooks(website, signals, photos) == hook

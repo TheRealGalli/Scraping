@@ -30,9 +30,23 @@ SECTOR_RULES["nfc"] += ["Gioiellerie", "Studi Dentistici"]
 SECTOR_RULES["sito"] += ["Gioiellerie", "Studi Dentistici"]
 SECTOR_RULES["social"] += ["Gioiellerie", "Studi Dentistici"]
 SECTOR_RULES["forecasting"] = ["Ristorazione", "Hospitality", "Boutique e Retail"]
+# NFC + Video & Slide segments: the first service to propose for each one.
+SEGMENT_RULES_V4 = {
+    "Tatuaggi e Piercing": ["media", "nfc"],
+    "Serramenti e Pergole": ["media"],
+    "Artigiani su Misura": ["media", "sito"],
+    "Cantine e Frantoi": ["media", "nfc"],
+    "Autoscuole e Scuole di Lingue": ["media", "nfc"],
+    "Noleggio Barche ed Escursioni": ["media"],
+    "Grossisti e Distributori": ["media", "forecasting"],
+    "Amministratori di Condominio": ["consulenza"],
+}
+for sector, campaigns in SEGMENT_RULES_V4.items():
+    for campaign in campaigns:
+        SECTOR_RULES[campaign].append(sector)
 OPTIONAL_CAMPAIGNS = {"forecasting"}
 FOCUS_LIMITS = {c: (75 if c in {"nfc", "media"} else 0) for c in CATALOG}
-RULE_VERSION = "2026-11-01-v3"
+RULE_VERSION = "2026-11-03-v4"
 
 
 def disabled_config():

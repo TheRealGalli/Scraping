@@ -54,6 +54,8 @@ class CampaignSheets:
                 actual = [ws.row_values(1)] if hasattr(ws, "row_values") else self.rows(title)[:1]
                 if not actual or actual[0] != headers:
                     raise ValueError("Unexpected headers; refusing to replace " + title)
+                if title == "RegoleSettori":
+                    self._refresh_rules(ws)
                 continue
             ws = self.book.add_worksheet(title=title, rows=1000, cols=max(len(headers), 12))
             ws.update(range_name="A1", values=[headers], value_input_option="RAW")
@@ -64,6 +66,15 @@ class CampaignSheets:
                 ws.append_row(["TRUE"], value_input_option="RAW")
             elif title == "RegoleSettori":
                 ws.append_rows([[c, s, RULE_VERSION] for c in CATALOG for s in SECTOR_RULES[c]], value_input_option="RAW")
+
+    def _refresh_rules(self, ws):
+        # Targeting lives in code; the tab mirrors it once per rule version.
+        rows = self.rows("RegoleSettori")[1:]
+        if rows and all((row + ["", "", ""])[2] == RULE_VERSION for row in rows if any(row)):
+            return
+        rules = [[c, s, RULE_VERSION] for c in CATALOG for s in SECTOR_RULES[c]]
+        ws.clear()
+        ws.update(range_name="A1", values=[HEADERS["RegoleSettori"]] + rules, value_input_option="RAW")
 
     def configs(self):
         rows = self.rows("Campagne")

@@ -77,12 +77,16 @@ organizzazione eventi; wedding planner; location matrimoni; agenzia eventi azien
 
 ## Abbinamenti completi
 
-- **consulenza**: Studi Professionali, Hospitality, Automotive, Agenzie Immobiliari, Architettura e Interior Design.
+Elenco della versione 2026-11-03-v4, generato dal codice. I segmenti per NFC e
+Video & Slide sono descritti in [SEGMENTI_NFC_VIDEO.md](SEGMENTI_NFC_VIDEO.md).
+
+- **consulenza**: Studi Professionali, Hospitality, Automotive, Agenzie Immobiliari, Architettura e Interior Design, Amministratori di Condominio.
 - **training**: Studi Professionali, Hospitality, Agenzie Immobiliari, Architettura e Interior Design.
-- **nfc**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Automotive, Fitness e Sport, Veterinaria e Pet Care.
-- **sito**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Automotive, Fitness e Sport, Veterinaria e Pet Care, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding.
-- **social**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Fitness e Sport, Veterinaria e Pet Care, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding.
-- **media**: Studi Professionali, Hospitality, Boutique e Retail, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding.
+- **nfc**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Automotive, Fitness e Sport, Veterinaria e Pet Care, Gioiellerie, Studi Dentistici, Tatuaggi e Piercing, Cantine e Frantoi, Autoscuole e Scuole di Lingue.
+- **sito**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Automotive, Fitness e Sport, Veterinaria e Pet Care, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding, Gioiellerie, Studi Dentistici, Artigiani su Misura.
+- **social**: Ristorazione, Centri e Servizi, Hospitality, Boutique e Retail, Fitness e Sport, Veterinaria e Pet Care, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding, Gioiellerie, Studi Dentistici.
+- **media**: Studi Professionali, Hospitality, Boutique e Retail, Agenzie Immobiliari, Architettura e Interior Design, Eventi e Wedding, Ristorazione, Centri e Servizi, Automotive, Fitness e Sport, Veterinaria e Pet Care, Gioiellerie, Studi Dentistici, Tatuaggi e Piercing, Serramenti e Pergole, Artigiani su Misura, Cantine e Frantoi, Autoscuole e Scuole di Lingue, Noleggio Barche ed Escursioni, Grossisti e Distributori.
+- **forecasting**: Ristorazione, Hospitality, Boutique e Retail, Grossisti e Distributori.
 
 ## Applicazione controllata
 

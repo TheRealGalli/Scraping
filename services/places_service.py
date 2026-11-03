@@ -7,12 +7,19 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 PLACES_API_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+# websiteUri/rating/userRatingCount already bill Text Search Enterprise; the
+# request is billed at its highest SKU, so these Pro fields add no cost.
+TEXT_SEARCH_FIELD_MASK = ",".join([
+    "places.id", "places.displayName", "places.formattedAddress", "places.websiteUri",
+    "places.rating", "places.userRatingCount", "places.businessStatus",
+    "places.primaryTypeDisplayName", "places.googleMapsUri", "places.photos",
+])
 
 class PlacesService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_API_KEY
 
-    def _get_headers(self, field_mask: str = "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.rating,places.userRatingCount") -> Dict[str, str]:
+    def _get_headers(self, field_mask: str = TEXT_SEARCH_FIELD_MASK) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-FieldMask": field_mask
@@ -35,7 +42,8 @@ class PlacesService:
     def search_places(self, query: str, max_results: int = 10, min_rating: float = None) -> List[Dict[str, Any]]:
         """
         Searches places using Google Places API (New) searchText endpoint.
-        Returns a list of place dictionaries with place_id, name, address, website, rating, user_rating_count.
+        Returns a list of place dictionaries with place_id, name, address, website, rating, user_rating_count,
+        business_status, google_category, maps_url and google_photos (the API returns at most 10 photos).
         """
         headers = self._get_headers()
         if "X-Goog-Api-Key" not in headers and "Authorization" not in headers:
@@ -73,6 +81,8 @@ class PlacesService:
                     website = p.get("websiteUri", "")
                     rating = p.get("rating", None)
                     user_rating_count = p.get("userRatingCount", None)
+                    category_obj = p.get("primaryTypeDisplayName", {})
+                    category = category_obj.get("text", "") if isinstance(category_obj, dict) else ""
 
                     results.append({
                         "place_id": place_id,
@@ -80,7 +90,11 @@ class PlacesService:
                         "address": address,
                         "website": website,
                         "rating": rating,
-                        "user_rating_count": user_rating_count
+                        "user_rating_count": user_rating_count,
+                        "business_status": p.get("businessStatus", ""),
+                        "google_category": category,
+                        "maps_url": p.get("googleMapsUri", ""),
+                        "google_photos": len(p.get("photos") or [])
                     })
                 
                 logger.info(f"Places API returned {len(results)} results for query: '{query}'")
