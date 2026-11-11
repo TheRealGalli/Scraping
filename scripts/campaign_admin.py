@@ -97,7 +97,7 @@ def activate150(store, sheets, bucket_name):
         raise ValueError("Set GLOBAL_DAILY_LIMIT=150 on campaign-admin before activation")
     configure150(store, sheets, bucket_name)
     # Keep Sheets paused until all pairs and all eight shortlists are rebuilt.
-    main(["sync", "--legacy-campaign", "nfc", "--backup-bucket", bucket_name])
+    main(["sync", "--legacy-campaign", "nfc", "--backup-bucket", bucket_name], store=store, sheets=sheets)
     now, token = utcnow(), uuid.uuid4().hex
     def lock(d):
         if d[GATE].get("until", now) > now:
@@ -128,7 +128,7 @@ def activate150(store, sheets, bucket_name):
         store.atomic([GATE], unlock)
 
 
-def main(argv=None):
+def main(argv=None, *, store=None, sheets=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150", "focus150", "activate150", "scraper-check"])
     parser.add_argument("--legacy-campaign", choices=["unknown", "nfc"], default="unknown")
@@ -143,7 +143,9 @@ def main(argv=None):
         state = SheetsService().scraper_state(expand=True)
         print(json.dumps({"event": "scraper_check", "status": "ready", **state}, ensure_ascii=False))
         return
-    store, sheets, now = FirestoreStore(), CampaignSheets(), utcnow()
+    store = store if store is not None else FirestoreStore()
+    sheets = sheets if sheets is not None else CampaignSheets()
+    now = utcnow()
     if args.command == "activate150":
         activate150(store, sheets, args.backup_bucket)
         return

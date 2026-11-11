@@ -36,6 +36,7 @@ def boolean(value, default=False):
 class CampaignSheets:
     def __init__(self, workbook=None):
         self._book = workbook
+        self._worksheets = {}
 
     @property
     def book(self):
@@ -43,14 +44,21 @@ class CampaignSheets:
             self._book = SheetsService()._get_client().open_by_key(settings.SPREADSHEET_ID)
         return self._book
 
+    def worksheet(self, name):
+        # Cache handles only. Read values afresh so manual controls remain current.
+        if name not in self._worksheets:
+            self._worksheets[name] = self.book.worksheet(name)
+        return self._worksheets[name]
+
     def rows(self, name):
-        return self.book.worksheet(name).get_all_values()
+        return self.worksheet(name).get_all_values()
 
     def ensure(self):
-        existing = {s.title for s in self.book.worksheets()}
+        self._worksheets = {s.title: s for s in self.book.worksheets()}
+        existing = set(self._worksheets)
         for title, headers in HEADERS.items():
             if title in existing:
-                ws = self.book.worksheet(title)
+                ws = self.worksheet(title)
                 actual = [ws.row_values(1)] if hasattr(ws, "row_values") else self.rows(title)[:1]
                 if not actual or actual[0] != headers:
                     raise ValueError("Unexpected headers; refusing to replace " + title)
@@ -58,6 +66,7 @@ class CampaignSheets:
                     self._refresh_rules(ws)
                 continue
             ws = self.book.add_worksheet(title=title, rows=1000, cols=max(len(headers), 12))
+            self._worksheets[title] = ws
             ws.update(range_name="A1", values=[headers], value_input_option="RAW")
             ws.freeze(rows=1)
             if title == "Campagne":
@@ -202,7 +211,7 @@ class CampaignSheets:
         self.replace_report("Panoramica", summary)
 
     def update_contacts(self, values):
-        ws = self.book.worksheet("Contatti")
+        ws = self.worksheet("Contatti")
         rows = ws.get_all_values()
         if not rows or rows[0] != HEADERS["Contatti"]:
             raise ValueError("Invalid Contatti headers")
@@ -226,7 +235,7 @@ class CampaignSheets:
                 ws.append_rows(new[offset:offset + 1000], value_input_option="RAW")
 
     def append_events(self, values):
-        ws = self.book.worksheet("Invii")
+        ws = self.worksheet("Invii")
         existing = ws.get_all_values()
         if not existing or existing[0] != HEADERS["Invii"]:
             raise ValueError("Invalid Invii headers")
@@ -245,7 +254,7 @@ class CampaignSheets:
             ws.append_rows(new[offset:offset + 1000], value_input_option="RAW")
 
     def replace_report(self, title, values):
-        ws = self.book.worksheet(title)
+        ws = self.worksheet(title)
         # RAW prevents scraped values from becoming spreadsheet formulas.
         if [[str(v) for v in row] for row in ws.get_all_values()] == [[str(v) for v in row] for row in values]:
             return

@@ -4,6 +4,7 @@ import google.auth
 import gspread
 
 from config import settings
+from services.sheets_http import QuotaRetryHTTPClient
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class SheetsService:
                 try:
                     info = json.loads(sa_json_env)
                     credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-                    self.client = gspread.authorize(credentials)
+                    self.client = gspread.authorize(credentials, http_client=QuotaRetryHTTPClient)
                     logger.info("Authorized SheetsService using service account JSON from environment variable.")
                     return self.client
                 except Exception as e:
@@ -50,7 +51,7 @@ class SheetsService:
             for file_path in possible_files:
                 if file_path and os.path.exists(file_path):
                     try:
-                        self.client = gspread.service_account(filename=file_path, scopes=SCOPES)
+                        self.client = gspread.service_account(filename=file_path, scopes=SCOPES, http_client=QuotaRetryHTTPClient)
                         logger.info(f"Authorized SheetsService using service account file '{file_path}'.")
                         return self.client
                     except Exception as e:
@@ -60,7 +61,7 @@ class SheetsService:
             credentials, _ = google.auth.default(scopes=SCOPES)
             if hasattr(credentials, "with_scopes"):
                 credentials = credentials.with_scopes(SCOPES)
-            self.client = gspread.authorize(credentials)
+            self.client = gspread.authorize(credentials, http_client=QuotaRetryHTTPClient)
             logger.info("Authorized SheetsService using Google Default Credentials.")
         return self.client
 

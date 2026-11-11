@@ -60,3 +60,25 @@ riprenderlo esplicitamente solo se si desiderano gli invii automatici.
 Una pausa email preesistente viene conservata.
 Il servizio mantiene SENDING_ENABLED e SENDER_MODE correnti: lo script non converte
 un ambiente di prova in invii reali. Non esegue invii forzati per il collaudo.
+
+## Recupero da quota Sheets 429
+
+L'attivazione può aver già scritto tutte le quote prima che il sync fallisca.
+Il foglio aggiornato non prova che le liste siano pronte: non togliere la pausa
+solo per questo. La correzione dell'11 novembre conserva gli oggetti worksheet
+per evitare richieste di metadati ripetute e riutilizza la connessione durante
+l'attivazione. I valori dei controlli restano letti da Sheets a ogni controllo.
+
+Il client riprova solo le risposte esplicite 429, dopo 5, 10, 20 e 40 secondi;
+esauriti i tentativi l'errore resta visibile. Timeout e altri errori non vengono
+ripetuti automaticamente, per evitare di duplicare scritture dall'esito incerto.
+Il limite di letture al minuto di Sheets è distinto dalle quote Maps e dal tetto
+email giornaliero: non serve modificare quei limiti per recuperare questo errore.
+
+Dopo il deploy della correzione, rieseguire lo script activate_all_campaigns.sh
+del nuovo commit. Se lo Scheduler email è rimasto in pausa dal tentativo precedente,
+lo script conserva quella pausa. Solo dopo OTTO_CAMPAGNE_ATTIVE e uscita zero:
+
+```bash
+gcloud scheduler jobs resume campaign-email-dispatch --project=scraping-505816 --location=europe-west1 --quiet
+```

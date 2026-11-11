@@ -70,7 +70,7 @@ def test_activation_does_not_unpause_if_sync_fails(monkeypatch):
     monkeypatch.setattr(settings, "GLOBAL_DAILY_LIMIT", 150)
     configure = Mock()
     monkeypatch.setattr(admin, "configure150", configure)
-    def sync(args):
+    def sync(args, **kwargs):
         raise RuntimeError("failed sync")
     monkeypatch.setattr(admin, "main", sync)
     with pytest.raises(RuntimeError, match="failed sync"):
@@ -86,7 +86,7 @@ def test_activation_unpauses_only_after_successful_sync_and_reports_current_coun
     events = []
     monkeypatch.setattr(settings, "GLOBAL_DAILY_LIMIT", 150)
     monkeypatch.setattr(admin, "configure150", lambda *args: events.append("configure"))
-    def sync(args):
+    def sync(args, **kwargs):
         events.append("sync")
         assert args == ["sync", "--legacy-campaign", "nfc", "--backup-bucket", "backup"]
         store.data[GLOBAL] = dict(contacts_synced_at=admin.utcnow(), paused=True, maintenance=False)
