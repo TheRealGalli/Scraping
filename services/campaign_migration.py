@@ -5,7 +5,7 @@ import hashlib
 import pytz
 
 from config import settings
-from services.campaign_catalog import CATALOG, SECTOR_RULES
+from services.campaign_catalog import CATALOG, SECTOR_RULES, campaign_order
 from services.recipient_policy import contact_id, exclusion_reason, normalize_email
 
 
@@ -27,9 +27,7 @@ def prepare_import(rows, existing, overrides, legacy_campaign, now):
         cid = contact_id(email)
         if cid not in contacts:
             previous = existing.get(cid, {})
-            order = list(CATALOG)
-            offset = int(cid[:8], 16) % len(order)
-            contacts[cid] = dict(previous, email=email, sectors=[], sources=[], locations=[], source_count=0, enabled=overrides.get(cid, {}).get("enabled", previous.get("enabled", True)), reference=overrides.get(cid, {}).get("reference", previous.get("reference", "")), campaign_order=previous.get("campaign_order", order[offset:] + order[:offset]), history=list(previous.get("history", [])), sent=list(previous.get("sent", [])), legacy_keys=list(previous.get("legacy_keys", [])))
+            contacts[cid] = dict(previous, email=email, sectors=[], sources=[], locations=[], source_count=0, enabled=overrides.get(cid, {}).get("enabled", previous.get("enabled", True)), reference=overrides.get(cid, {}).get("reference", previous.get("reference", "")), history=list(previous.get("history", [])), sent=list(previous.get("sent", [])), legacy_keys=list(previous.get("legacy_keys", [])))
         else:
             summary["duplicate_email_rows"] += 1
         c = contacts[cid]
@@ -76,6 +74,7 @@ def prepare_import(rows, existing, overrides, legacy_campaign, now):
     for cid, c in contacts.items():
         c["history"] = sorted(c["history"])
         c["sectors"] = sorted(c["sectors"])
+        c["campaign_order"] = campaign_order(c["sectors"])
         for campaign in CATALOG:
             if set(c["sectors"]).intersection(SECTOR_RULES[campaign]):
                 pairs[campaign + ":" + cid] = {"campaign": campaign, "contact_id": cid, "state": "sent" if campaign in c["sent"] else "queued", "eligible_at": now, "reason": "imported"}

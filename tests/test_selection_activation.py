@@ -45,7 +45,7 @@ elif args[:3] == ['run', 'jobs', 'execute'] and os.environ['SELECTION_TEST_FAIL_
     fake.chmod(0o755)
     script = (ROOT / "scripts" / script_name).read_text()
     script = script.replace("gcloud ", shlex.quote(str(fake)) + " ")
-    script = script.replace("sleep 5", ":").replace("sleep 10", ":")
+    script = script.replace("sleep 5", ":").replace("sleep 10", ":").replace("sleep 60", ":")
     local = tmp_path / "activate.sh"
     local.write_text(script)
     result = subprocess.run(

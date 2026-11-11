@@ -11,9 +11,9 @@ SECTOR_RULES = {
     "nfc": ["Ristorazione", "Centri e Servizi", "Hospitality", "Boutique e Retail", "Automotive", "Fitness e Sport", "Veterinaria e Pet Care"],
     "sito": ["Ristorazione", "Centri e Servizi", "Hospitality", "Boutique e Retail", "Automotive", "Fitness e Sport", "Veterinaria e Pet Care"],
     "social": ["Ristorazione", "Centri e Servizi", "Hospitality", "Boutique e Retail", "Fitness e Sport", "Veterinaria e Pet Care"],
-    "media": ["Studi Professionali", "Hospitality", "Boutique e Retail"],
+    "media": ["Hospitality", "Boutique e Retail"],
 }
-DEFAULT_LIMITS = dict(consulenza=25, training=20, nfc=30, sito=25, social=25, media=25, forecasting=0)
+DEFAULT_LIMITS = dict(consulenza=35, training=15, nfc=20, sito=15, social=15, media=15, forecasting=15, archivio=20)
 # Explicit commercial fit; new sectors never enter every campaign automatically.
 for campaign in ("consulenza", "training", "sito", "social", "media"):
     SECTOR_RULES[campaign].append("Agenzie Immobiliari")
@@ -21,10 +21,10 @@ for campaign in ("consulenza", "training", "sito", "social", "media"):
     SECTOR_RULES[campaign].append("Architettura e Interior Design")
 for campaign in ("sito", "social", "media"):
     SECTOR_RULES[campaign].append("Eventi e Wedding")
-# Existing broad sectors retain already collected jewelers/dentists.
+# Visual services for product, venue and portfolio businesses.
 SECTOR_RULES["media"] = list(dict.fromkeys(SECTOR_RULES["media"] + [
     "Ristorazione", "Centri e Servizi", "Automotive", "Fitness e Sport",
-    "Veterinaria e Pet Care", "Gioiellerie", "Studi Dentistici"
+    "Veterinaria e Pet Care", "Gioiellerie"
 ]))
 SECTOR_RULES["nfc"] += ["Gioiellerie", "Studi Dentistici"]
 SECTOR_RULES["sito"] += ["Gioiellerie", "Studi Dentistici"]
@@ -44,9 +44,36 @@ SEGMENT_RULES_V4 = {
 for sector, campaigns in SEGMENT_RULES_V4.items():
     for campaign in campaigns:
         SECTOR_RULES[campaign].append(sector)
-OPTIONAL_CAMPAIGNS = {"forecasting"}
+SECTOR_RULES["consulenza"] += ["Studi Dentistici", "Grossisti e Distributori"]
+SECTOR_RULES["training"].append("Studi Dentistici")
+SECTOR_RULES["archivio"] = ["Studi Professionali", "Studi Dentistici", "Amministratori di Condominio", "Architettura e Interior Design"]
+
+# Commercial order replaces the old per-address rotation, also on existing imports.
+SECTOR_PRIORITIES = {
+    "Studi Professionali": ["consulenza", "archivio", "training"],
+    "Studi Dentistici": ["consulenza", "training", "archivio", "nfc", "sito", "social"],
+    "Amministratori di Condominio": ["archivio", "consulenza"],
+    "Architettura e Interior Design": ["media", "sito", "archivio", "consulenza", "social", "training"],
+    "Grossisti e Distributori": ["forecasting", "consulenza", "media"],
+    "Ristorazione": ["forecasting", "nfc", "sito", "social", "media"],
+    "Hospitality": ["forecasting", "nfc", "sito", "social", "consulenza", "training", "media"],
+    "Gioiellerie": ["media", "sito", "social", "nfc"],
+    "Boutique e Retail": ["media", "sito", "social", "nfc", "forecasting"],
+    "Artigiani su Misura": ["media", "sito"],
+}
+
+
+def campaign_order(sectors):
+    priorities = [SECTOR_PRIORITIES[s] for s in sectors if s in SECTOR_PRIORITIES]
+    return sorted(CATALOG, key=lambda c: (
+        min((order.index(c) for order in priorities if c in order), default=len(CATALOG)),
+        list(CATALOG).index(c),
+    ))
+
+
+OPTIONAL_CAMPAIGNS = {"forecasting", "archivio"}
 FOCUS_LIMITS = {c: (75 if c in {"nfc", "media"} else 0) for c in CATALOG}
-RULE_VERSION = "2026-11-03-v4"
+RULE_VERSION = "2026-11-11-v5"
 
 
 def disabled_config():

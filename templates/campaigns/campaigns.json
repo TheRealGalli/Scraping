@@ -75,5 +75,16 @@
     "alt": "Otto presenta uno storico, una previsione con fascia di incertezza e scatole di magazzino",
     "cta": "Scopri la prova di forecasting",
     "path": "/forecasting/"
+  },
+  {
+    "id": "archivio",
+    "name": "Archivio AI",
+    "tag": "I TUOI DOCUMENTI, RITROVATI",
+    "subject": "Ritrovare un documento con una domanda",
+    "preheader": "Un archivio interrogabile, anche interamente in locale.",
+    "image": "consulenza.jpg",
+    "alt": "Otto fra documenti e un grande tasto copia e incolla",
+    "cta": "Scopri Archivio AI",
+    "path": "/archivio-ai/"
   }
 ]

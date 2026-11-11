@@ -91,9 +91,46 @@ def configure150(store, sheets, bucket_name, expand_scraper=False, focus=False):
         store.atomic([GATE], unlock)
 
 
+def activate150(store, sheets, bucket_name):
+    """Explicit owner-authorized activation after backup and a successful sync."""
+    if settings.GLOBAL_DAILY_LIMIT != 150:
+        raise ValueError("Set GLOBAL_DAILY_LIMIT=150 on campaign-admin before activation")
+    configure150(store, sheets, bucket_name)
+    # Keep Sheets paused until all pairs and all eight shortlists are rebuilt.
+    main(["sync", "--legacy-campaign", "nfc", "--backup-bucket", bucket_name])
+    now, token = utcnow(), uuid.uuid4().hex
+    def lock(d):
+        if d[GATE].get("until", now) > now:
+            raise ValueError("Another operation is active; retry activation")
+        fresh = d[GLOBAL].get("contacts_synced_at")
+        if not fresh or now - fresh > timedelta(minutes=settings.CAMPAIGN_SHEET_MAX_AGE_MINUTES):
+            raise ValueError("Successful fresh sync required before resuming")
+        return {GATE: dict(d[GATE], token=token, until=now + timedelta(hours=2)),
+                GLOBAL: dict(d[GLOBAL], maintenance=True)}, None
+    store.atomic([GATE, GLOBAL], lock)
+    try:
+        from services.campaign_catalog import DEFAULT_LIMITS
+        configs = sheets.configs()
+        if any(not configs[c]["enabled"] or configs[c]["daily_limit"] != q
+               or configs[c]["initial_limit"] != q for c, q in DEFAULT_LIMITS.items()):
+            raise ValueError("Campaign configuration changed during activation")
+        sheets.book.worksheet("ControlloInvii").update(range_name="A2", values=[["FALSE"]], value_input_option="RAW")
+        sheets.refresh_controls(store, utcnow())
+        sheets.update_report(store)
+        store.atomic([GLOBAL], lambda d: ({GLOBAL: dict(d[GLOBAL], maintenance=False)}, None))
+        print(json.dumps({"status": "all_campaigns_active", "quota_total": 150,
+                          "campaigns": DEFAULT_LIMITS, "paused": False}))
+    finally:
+        def unlock(d):
+            if d[GATE].get("token") != token:
+                return {}, None
+            return {GATE: dict(d[GATE], until=utcnow())}, None
+        store.atomic([GATE], unlock)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150", "focus150", "scraper-check"])
+    parser.add_argument("command", choices=["plan", "apply", "sync", "report", "pause", "resolve", "configure150", "focus150", "activate150", "scraper-check"])
     parser.add_argument("--legacy-campaign", choices=["unknown", "nfc"], default="unknown")
     parser.add_argument("--backup-bucket", default="")
     parser.add_argument("--expand-scraper", action="store_true", help="Only while the scraper Scheduler is paused")
@@ -107,6 +144,9 @@ def main(argv=None):
         print(json.dumps({"event": "scraper_check", "status": "ready", **state}, ensure_ascii=False))
         return
     store, sheets, now = FirestoreStore(), CampaignSheets(), utcnow()
+    if args.command == "activate150":
+        activate150(store, sheets, args.backup_bucket)
+        return
     if args.command in {"configure150", "focus150"}:
         configure150(store, sheets, args.backup_bucket, args.expand_scraper, focus=args.command == "focus150")
         return

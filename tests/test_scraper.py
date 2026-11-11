@@ -243,11 +243,16 @@ def test_nfc_media_segments_have_keywords_and_the_first_service_to_propose():
     for sector in v4[13:]:
         assert len(SECTORS[sector]) >= 4 and "," not in sector
         targeted = {c for c, sectors in SECTOR_RULES.items() if sector in sectors}
-        assert targeted == set(SEGMENT_RULES_V4[sector])
+        expected = set(SEGMENT_RULES_V4[sector])
+        if sector == "Grossisti e Distributori":
+            expected.add("consulenza")
+        if sector == "Amministratori di Condominio":
+            expected.add("archivio")
+        assert targeted == expected
     for sector in ("Tatuaggi e Piercing", "Cantine e Frantoi", "Autoscuole e Scuole di Lingue"):
         assert sector in SECTOR_RULES["nfc"]
     assert "Serramenti e Pergole" not in SECTOR_RULES["nfc"]
-    assert SECTOR_RULES["consulenza"][-1] == "Amministratori di Condominio"
+    assert "Amministratori di Condominio" in SECTOR_RULES["consulenza"]
     assert all(len(set(sectors)) == len(sectors) for sectors in SECTOR_RULES.values())
 
 

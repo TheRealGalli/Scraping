@@ -43,6 +43,10 @@ conservando credenziali, variabili e argomenti sync già configurati.
 
 ## Quote della scheda Campagne
 
+Configurazione approvata l’11 novembre 2026: otto campagne, massimo globale 150.
+Vedere [quote, abbinamenti e attivazione](OTTO_CAMPAGNE.md). La tabella seguente
+conserva il precedente esempio di avvio graduale a sei campagne.
+
 Campi modificabili: Attiva, Quota, Quota iniziale, Inizio, Rampa, Intervallo secondi.
 La quota globale è configurata su Cloud Run e non si modifica da questa scheda.
 Configurazione proposta A REGIME, da applicare dopo il collaudo:

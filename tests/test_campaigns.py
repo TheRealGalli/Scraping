@@ -215,6 +215,9 @@ def test_reviewed_pair_cannot_hold_other_campaign_forever(setup):
     store, transport = setup
     cid = add(store, campaign="nfc")
     store.data[("pairs", "nfc:" + cid)].update(state="review", reason="transport_rejected")
+    for campaign in CATALOG:
+        if campaign not in {"nfc", "social"}:
+            store.data[("campaigns", campaign)]["enabled"] = False
     store.data[GATE] = {"seen": {"nfc": NOW}}
     assert CampaignEngine(store, transport, lambda: NOW).run("social")["status"] == "accepted"
 
@@ -399,10 +402,12 @@ def test_previous_six_campaign_config_disables_optional_forecasting(setup):
         validate_config(existing)
 
 
-def test_new_media_targets_restaurants_jewelers_and_dental_centers():
+def test_media_targets_visual_businesses_and_excludes_professional_practices():
     from services.campaign_catalog import SECTOR_RULES
-    for sector in ["Ristorazione", "Gioiellerie", "Studi Dentistici", "Studi Professionali", "Boutique e Retail"]:
+    for sector in ["Ristorazione", "Gioiellerie", "Boutique e Retail"]:
         assert sector in SECTOR_RULES["media"]
+    for sector in ("Studi Dentistici", "Studi Professionali"):
+        assert sector not in SECTOR_RULES["media"]
 
 
 def test_catalog_templates_and_cid_assets_are_present():

@@ -338,7 +338,7 @@ class CampaignEngine:
                     and daily.get("campaigns", {}).get(c, 0) < effective_limit(configs[c], day)
                     and other_pair.get("state") == "queued"
                     and other_pair.get("eligible_at", now) <= now
-                    and (c == campaign or gate.get("seen", {}).get(c, now - timedelta(days=1)) > now - timedelta(minutes=20))
+                    and daily.get("next_campaign_at", {}).get(c, now) <= now
                 )
             choices = [c for c in CATALOG if can_claim(c)]
             order = contact.get("campaign_order", list(CATALOG))
